@@ -1,0 +1,20 @@
+{
+  "profile": "default_20261015_1917",
+  "source": "Local Git index blobs, repository has no committed history; these are recoverable baseline sources, not proof of a code commit at 19:17.",
+  "files": {
+    "nanogpt.py": {
+      "git_index_blob": "d71e243b15b5fc34afeb3a9d640e140a5e97abbc",
+      "snapshot_sha256": "d2b23a2052bada2b02182dad1ff958bb34f75309fa3bbdfeec73f5877f7f3e33",
+      "runtime_file": "legacy_default_nanogpt.py",
+      "runtime_sha256": "aa40a1a22d75ece9d4cbbc0b784574223b66b194537e2cb3c1771d3bebd11fc2",
+      "runtime_change": "Only relative glossary import renamed"
+    },
+    "glossary.py": {
+      "git_index_blob": "cd4d21861081dd0a468816c642a66e25da0e2495",
+      "snapshot_sha256": "d5aeb7cdcf3a58d0126b3cb8688ac1c50c84807abdfc88a28d9b407e17111b6d",
+      "runtime_file": "legacy_default_glossary.py",
+      "runtime_sha256": "d5aeb7cdcf3a58d0126b3cb8688ac1c50c84807abdfc88a28d9b407e17111b6d",
+      "runtime_change": "None"
+    }
+  }
+}

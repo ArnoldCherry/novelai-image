@@ -1,0 +1,3 @@
+maibot-sdk>=2.0.0,<3
+httpx>=0.27,<1
+Pillow>=10,<13

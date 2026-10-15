@@ -1,0 +1,4 @@
+# 历史快照按原始字节校验，禁止 Windows 自动转换换行符。
+/legacy_default_nanogpt.py -text
+/legacy_default_glossary.py -text
+/artifacts/default_20261015_1917_source/*.py -text

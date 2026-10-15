@@ -1,0 +1,11 @@
+__pycache__/
+.pytest_cache/
+config.toml
+*.egg-info/
+
+# 本机诊断、生成产物和旧代码备份不进入版本历史。
+/plugin.py.broken_*
+/plugin.py.git[0-9]*
+/artifacts/*
+!/artifacts/default_20261015_1917_source/
+/assets/styles/.*.json

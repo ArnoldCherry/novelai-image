@@ -1,0 +1,96 @@
+[plugin]
+enabled = true
+config_version = "1.3.7"
+[api]
+base_url = "https://image.novelai.net"
+model = "nai-diffusion-4-5-full"
+hd_model = "nai-diffusion-5-full"
+timeout_seconds = 180
+retry_attempts = 3
+proxy = ""
+[api.model_aliases]
+"普通" = "nai-diffusion-4-5-full"
+"高清" = "nai-diffusion-5-full"
+[generation]
+# 手动参数优先；关闭自动规划时使用下列配置默认值
+auto_parameters = true
+default_style_weight = 1.0
+# Group IDs listed here get every drawing collapsed into one merged forward; other
+# groups and private chats receive images directly. Empty list = never collapse.
+collapse_groups = []
+default_ratio = "竖图"
+default_steps = 28
+default_scale = 5.0
+default_sampler = "k_euler_ancestral"
+default_negative_prompt = "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading"
+max_images = 2
+max_prompt_length = 3000
+[limits]
+cooldown_seconds = 25
+hd_cooldown_seconds = 40
+max_concurrent_jobs = 1
+[translation]
+enabled = true
+backend = "nanogpt"
+nanogpt_model = "qwen/qwen3.8-27b-uncensored"
+nanogpt_base_url = "https://nano-gpt.com/api/v1"
+proxy = ""
+tag_index_enabled = true
+tag_index_path = ""
+# 以下参数仅用于 backend = "ollama"
+model = "huihui_ai/qwen3-abliterated:4b"
+fallback_model = "huihui_ai/qwen3-abliterated:1.7b"
+base_url = "http://127.0.0.1:11434"
+timeout_seconds = 60
+num_gpu = -1
+repeat_penalty = 1.3
+keep_alive = 0
+[permission]
+mode = "all"
+user_ids = []
+group_ids = []
+
+[characters]
+enabled = true
+catalog_path = ""
+include_image_reference = true
+reference_strength = 0.75
+reference_fidelity = 0.6
+
+# 明确画风时仅参考角色；服装、姿势、发型只降低保真度，身份特征覆盖另行减弱
+default_reference_type = "character&style"
+auto_reference_policy = true
+override_strength = 0.35
+override_fidelity = 0.15
+
+outfit_fidelity = 0.35
+# 同图拆为角色与画风，两项参考每张生成图额外 10 Anlas
+separate_style_reference = true
+auto_reference_strength = 0.8
+auto_reference_fidelity = 0.55
+
+[style]
+enabled = true
+# Prompt a named style to swap the whole preset: 厚涂 / 赛璐璐 / 水彩 / 素描 / 像素 / 写实.
+# Nothing named -> the default soft preset below.
+preset_enabled = true
+# Each named preset ships one style reference image (4.5 Full only, +5 Anlas per image).
+# Skipped automatically when the two reference slots are taken or the model is 5 Full.
+preset_reference_enabled = true
+default_tags =["soft shading", "smooth shading", "gradient shading", "airbrushed shading", "detailed skin", "glossy skin", "specular highlights", "porcelain skin", "white skin", "detailed face", "detailed eyes", "beautiful detailed eyes", "detailed hair", "hair highlights", "glossy hair", "0.7::colored lineart, thin lines::", "soft lineart", "soft edges", "blurred lineart", "gentle shading", "soft gradient", "smooth gradient", "blended shading", "soft blending", "subtle shading", "smooth transition", "depth of field", "blurry background", "soft focus", "soft lighting", "diffused lighting", "ambient light", "even lighting", "soft shadows", "low contrast", "gentle light", "muted colors", "dull colors", "desaturated", "low saturation", "faded colors", "subdued colors", "soft bloom", "hazy", "atmospheric haze", "dreamy", "warm grey", "beige", "warm ambient light", "pale skin", "light skin", "pastel colors", "warm tone", "anime style", "2d", "clean lineart", "1.2::detailed skin, detailed shading, intricate details::", "painterly", "detailed texture", "fine details", "1.3::detailed skin, detailed shading, intricate details::", "delicate features", "beautiful detailed eyes", "detailed iris", "detailed eyelashes", "1.2::detailed face, detailed eyes::"]
+hd_default_tags = ["soft shading", "smooth shading", "gradient shading", "airbrushed shading", "detailed skin", "detailed face", "detailed eyes", "beautiful detailed eyes", "detailed hair", "hair highlights", "glossy hair", "soft lineart", "soft edges", "blurred lineart", "gentle shading", "soft gradient", "smooth gradient", "blended shading", "soft blending", "subtle shading", "smooth transition", "depth of field", "blurry background", "soft focus", "soft lighting", "diffused lighting", "ambient light", "even lighting", "soft shadows", "gentle light", "warm grey", "beige", "warm ambient light", "pale skin", "light skin", "pastel colors", "warm tone", "anime style", "2d", "clean lineart", "contrast", "saturated colors", "vivid colors", "0.7::colored lineart, thin lines::"]
+default_negative_tags = ["dramatic lighting", "high contrast", "harsh shadows", "vivid colors", "saturated", "realistic skin", "photorealistic", "hyperrealistic", "3d", "3d render", "skin pores", "oily skin", "wax figure", "doll"]
+hd_default_negative_tags = ["dramatic lighting", "harsh shadows"]
+hd_default_only_negative_tags = []
+# Optional per-model artist style tags. Example: "0.35::artist:ainiwaffles::"
+artist_tags = ""
+hd_artist_tags = ""
+reference_strength = 0.75
+reference_fidelity = 0.6
+auto_reference_strength = 0.85
+auto_reference_fidelity = 0.7
+max_reference_mb = 8
+sheet_columns = 6
+sheet_cell_width = 700
+sheet_quality = 88
+max_pending_requests = 100
