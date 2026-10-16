@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 import math
+import re
 import secrets
 import shlex
 
@@ -14,6 +15,11 @@ ALIASES = {"比例": "ratio", "种子": "seed", "步数": "steps", "负面": "ne
 ALIASES.update({"引导": "scale", "采样器": "sampler", "角色强度": "character-strength", "角色保真度": "character-fidelity", "画风强度": "style-strength", "画风保真度": "style-fidelity", "参考模式": "reference-mode", "自动参数": "auto", "画风权重": "style-weight"})
 SAMPLERS = ("k_euler", "k_euler_ancestral", "k_dpmpp_2s_ancestral", "k_dpmpp_2m", "k_dpmpp_sde", "ddim_v3")
 ALIASES.update({v: v for v in list(ALIASES.values())})
+RAW_MARKER = (
+    r"不要(?:再)?(?:看|分析|解析|翻译|扩写|处理)(?:这个|这段|我的)?(?:提示词|标签)"
+    r"|原样(?:把我的|将我的|把|将)?(?:标签|提示词)(?:传入|发送|提交)(?:novel\s*ai)?"
+    r"|原样传入(?:我的)?(?:标签|提示词)|(?:标签|提示词)原样传入"
+)
 
 @dataclass(frozen=True)
 class DrawRequest:
@@ -35,9 +41,25 @@ class DrawRequest:
     auto: Optional[bool] = None
     style_weight: Optional[float] = None
     explicit: tuple[str, ...] = ()
+    raw_prompt: bool = False
 
 def parse_args(text: str, *, default_model: str = MODEL_ALIASES["普通"], default_ratio: str = "竖图", default_steps: int = 28, default_negative: str = "low quality, blurry", max_images: int = 2, max_prompt_length: int = 3000, model_aliases: Optional[Dict[str, str]] = None, size_presets: Optional[Dict[str, Tuple[int, int]]] = None) -> DrawRequest:
     """选项从 -- 开始，负面文本保留空格直到下一个选项；支持引号。"""
+    # 直通指令在任何 shlex/词库处理之前识别，保留权重、引号与标签空白。
+    marker = re.search(RAW_MARKER, text, re.I)
+    raw_prompt = None
+    if marker:
+        tail = text[marker.end():].lstrip(" \t\r\n:：,，。;；")
+        while True:
+            repeated = re.match(r"(?:请|直接|并且|然后|就)?\s*(?:" + RAW_MARKER + r")", tail, re.I)
+            if not repeated:
+                break
+            tail = tail[repeated.end():].lstrip(" \t\r\n:：,，。;；")
+        option_start = re.search(r"\s+--[^\s]+", tail)
+        raw_prompt = (tail[:option_start.start()] if option_start else tail).strip()
+        text = "raw-placeholder " + (tail[option_start.start():] if option_start else "")
+        if not raw_prompt:
+            raise NovelAIError("原样模式标记后请填写要直接传入 NovelAI 的标签。")
     try:
         tokens = shlex.split(text, posix=True)
     except ValueError:
@@ -58,7 +80,7 @@ def parse_args(text: str, *, default_model: str = MODEL_ALIASES["普通"], defau
     values = {k: " ".join(v) for k, v in options.items()}
     if any(not v for v in values.values()):
         raise NovelAIError("参数缺少值。")
-    text_prompt = " ".join(prompt).strip()
+    text_prompt = raw_prompt if raw_prompt is not None else " ".join(prompt).strip()
     if not text_prompt or len(text_prompt) > max_prompt_length:
         raise NovelAIError(f"提示词不能为空且不能超过 {max_prompt_length} 个字符。")
     sizes = size_presets if size_presets is not None else SIZE_PRESETS
@@ -101,4 +123,4 @@ def parse_args(text: str, *, default_model: str = MODEL_ALIASES["普通"], defau
     auto = values.get("auto")
     if auto is not None and auto not in switches:
         raise NovelAIError("自动参数只能是 on 或 off（开启或关闭）。")
-    return DrawRequest(text_prompt, negative, model, width, height, number("steps", default_steps, 1, 50), number("seed", secrets.randbelow(2**32), 0, 2**32-1), number("count", 1, 1, min(max_images, 2)), scale=decimal("scale", 10), sampler=sampler, character_strength=decimal("character-strength", 1), character_fidelity=decimal("character-fidelity", 1), style_strength=decimal("style-strength", 1), style_fidelity=decimal("style-fidelity", 1), reference_mode=modes.get(mode), auto=switches.get(auto), style_weight=decimal("style-weight", 2), explicit=tuple(values))
+    return DrawRequest(text_prompt, negative, model, width, height, number("steps", default_steps, 1, 50), number("seed", secrets.randbelow(2**32), 0, 2**32-1), number("count", 1, 1, min(max_images, 2)), scale=decimal("scale", 10), sampler=sampler, character_strength=decimal("character-strength", 1), character_fidelity=decimal("character-fidelity", 1), style_strength=decimal("style-strength", 1), style_fidelity=decimal("style-fidelity", 1), reference_mode=modes.get(mode), auto=switches.get(auto), style_weight=decimal("style-weight", 2), explicit=tuple(values), raw_prompt=raw_prompt is not None)

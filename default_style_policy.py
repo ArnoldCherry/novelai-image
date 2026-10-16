@@ -8,6 +8,13 @@ from .legacy_default_nanogpt import NanoGPTTranslator
 # 原始甘雨和回滚甘雨的真实云译文共有项，并非重新设计静态 44 标签。
 FIXED_STYLE_TAIL = ("anime style", "cel shading", "soft_lighting", "detailed")
 _QUALITY = {"masterpiece", "best quality", "absurdres", "very aesthetic", "newest"}
+V5_DEFAULT_MULTI_QUALITY = ("masterpiece", "best_quality", "absurdres", "very aesthetic", "newest")
+# 赛璐璐是默认柔光配方里唯一强制平面媒介的标签；其余 44 个词（soft shading、
+# gradient shading、soft focus、depth of field、blurry background）对 3D 渲染同样成立，
+# 所以它们压不住官方 3D 观感强的角色，只会叠在 3D 底子上。
+# 单人 0.5 是按伊蕾娜同 seed 验收定的；多人时角色栏各带强先验，0.5 压不住。
+# 实测 1.0 会硬成平涂、丢掉柔光，故压到 0.7。
+MULTI_CEL_WEIGHT = 0.7
 _STYLE = re.compile(
     r"\b(?:style|shading|lineart|rendering|palette|brushwork|brushstrokes|dithering|"
     r"watercolou?r|painterly|photorealistic|photorealism|realism|realistic|impasto|render|cgi|"
@@ -100,6 +107,30 @@ def normalize_default_style(tags: List[str], source: str) -> List[str]:
         (quality if normalized in _QUALITY else content).append(tag)
     # 历史链已经截断云标签；固定画风属于额外开销，不能再次挤掉已保留的用户细节。
     return quality + fixed + content
+
+
+def normalize_default_multichar_style(tags: List[str], source: str) -> List[str]:
+    """让结构化多人翻译沿用已验收 V5 默认配方的质量词与赛璐璐权重。"""
+    normalized = normalize_default_style(tags, source)
+    result = []
+    seen = set()
+    supplied_quality = []
+    for tag in normalized:
+        key = _canonical(tag)
+        if key in _QUALITY:
+            if key not in {_canonical(item) for item in supplied_quality}:
+                supplied_quality.append(tag)
+                seen.add(key)
+            continue
+        if key == "cel shading":
+            tag = f"{MULTI_CEL_WEIGHT:g}::cel shading::"
+        if key not in seen:
+            result.append(tag)
+            seen.add(key)
+    standard_quality = list(V5_DEFAULT_MULTI_QUALITY)
+    standard_keys = {_canonical(tag) for tag in standard_quality}
+    extra_quality = [tag for tag in supplied_quality if _canonical(tag) not in standard_keys]
+    return standard_quality + extra_quality + result
 
 
 class DefaultStyleTranslator(NanoGPTTranslator):

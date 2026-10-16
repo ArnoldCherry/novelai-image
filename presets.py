@@ -58,6 +58,9 @@ class StylePreset:
     reference_fidelity: float = 0.2
     generation: Optional[GenerationTuning] = None
     generation_v5: Optional[GenerationTuning] = None
+    tags_v5: Optional[Tuple[str, ...]] = None
+    extra_negatives_v5: Optional[Tuple[str, ...]] = None
+    drop_negatives_v5: Optional[Tuple[str, ...]] = None
 
     @property
     def reference_path(self) -> Path:
@@ -130,8 +133,8 @@ V5_REFERENCE_RENDER: Dict[str, Tuple[str, ...]] = {
 
 
 def preset_render_tags(preset: StylePreset, v5: bool = False) -> Tuple[str, ...]:
-    """两套模型共用原图目标标签，模型差异由各档生成参数调节。"""
-    return preset.tags
+    """模型专用配方明确隔离，未单独校准的档沿用已有目标标签。"""
+    return preset.tags_v5 if v5 and preset.tags_v5 is not None else preset.tags
 
 
 # 画师档共用的一小段底：够撑住完成度，又不会盖掉画师本身的手感。
@@ -623,6 +626,17 @@ def _calibrated_artist(preset: StylePreset) -> StylePreset:
 
 
 PRESETS = tuple(_calibrated_artist(preset) for preset in PRESETS)
+# V5 按自己的参考图锁定静态配方，不能套用后来为 4.5 校准的另一套画法。
+# 快照只包含画风、负面与采样参数，排除了样图人物/服装/构图/seed；生成阶段不读 PNG。
+_V5_RECIPES = json.loads((ASSET_DIR.parent / "style_recipes_v5.json").read_text(encoding="utf-8"))["recipes"]
+PRESETS = tuple(replace(preset,
+    tags_v5=tuple(_V5_RECIPES[preset.key]["tags"]),
+    extra_negatives_v5=(), drop_negatives_v5=tuple(_V5_RECIPES[preset.key]["drop_negatives"]),
+    generation_v5=GenerationTuning(
+        negative_tags=tuple(_V5_RECIPES[preset.key]["negative_tags"]),
+        scale=_V5_RECIPES[preset.key]["scale"], steps=_V5_RECIPES[preset.key]["steps"],
+        sampler=_V5_RECIPES[preset.key]["sampler"], style_weight=_V5_RECIPES[preset.key]["style_weight"]))
+    if preset.key in _V5_RECIPES else preset for preset in PRESETS)
 # 默认档（柔光）不出现在这张表里：它走 [style] default_tags，不需要参考图。
 # 但「查看画风」要把它一起列出来，所以单独留一张预览图。
 DEFAULT_LABEL = "默认柔光"
@@ -773,13 +787,15 @@ def match_artist(text: str) -> Optional[StylePreset]:
     return best[1] if best else None
 
 
-def apply_preset_negatives(existing: Sequence[str], preset: StylePreset) -> List[str]:
+def apply_preset_negatives(existing: Sequence[str], preset: StylePreset, *, v5: bool = False) -> List[str]:
     """摘掉与这档画风冲突的负面，再追加这档自己的。
 
     传进来的应当是合并后的整条负面串（含 [generation] default_negative_prompt），
     冲突项在那里也有一份，只清风格那半条等于没清。
     """
-    dropped = {tag.lower() for tag in preset.drop_negatives}
+    drops = preset.drop_negatives_v5 if v5 and preset.drop_negatives_v5 is not None else preset.drop_negatives
+    extras = preset.extra_negatives_v5 if v5 and preset.extra_negatives_v5 is not None else preset.extra_negatives
+    dropped = {tag.lower() for tag in drops}
     kept = [tag for tag in existing if tag.lower() not in dropped]
     seen = {tag.lower() for tag in kept}
-    return kept + [tag for tag in preset.extra_negatives if tag.lower() not in seen]
+    return kept + [tag for tag in extras if tag.lower() not in seen]

@@ -249,10 +249,19 @@ R18_FACE = (
     "detailed iris",
     "detailed eyelashes",
 )
-# 分面权重给到 1.3：画风里的柔化标签会把结构磨平，不加权就糊成一块平粉。
+# 露骨内容补一块柔光强调。实测同一份请求体、同种子，只把画布从 832×1216 换到
+# 512×768（Small 档），画面就明显滑向写实：皮肤出照片质感、高光变硬。
+# 加权细节在小画布上喂不饱，模型先丢的就是柔光画风，所以这里把它顶回来。
+R18_SOFT_STYLE = (
+    "1.15::soft shading, airbrushed shading, gentle shading, blended shading, "
+    "soft edges, blurred lineart, soft focus::",
+)
+# 分面权重原为 1.3 / 1.2：画风里的柔化标签会把结构磨平，不加权就糊成一块平粉。
+# 但小画布像素只有大画布的 39%，同样的权重喂不饱，反而把柔光画风挤掉，
+# 故降到 1.15 / 1.05，与像素预算对齐。
 R18_FEMALE = (
-    "1.3::detailed pussy, visible labia, inner labia, detailed clitoris::",
-    "1.2::glistening pussy, wet pussy, vaginal lubrication::",
+    "1.15::detailed pussy, visible labia, inner labia, detailed clitoris::",
+    "1.05::glistening pussy, wet pussy, vaginal lubrication::",
     "detailed vulva",
     "vaginal opening",
     "detailed nipples",
@@ -345,7 +354,7 @@ def explicit_tags(text: str) -> List[str]:
     text = text or ""
     if not EXPLICIT_SCENE.search(text):
         return []
-    tags = list(R18_BASE) + list(R18_FACE)
+    tags = list(R18_BASE) + list(R18_FACE) + list(R18_SOFT_STYLE)
     if not (MALE_ONLY.search(text) and not FEMALE_MARK.search(text)):
         tags.extend(R18_FEMALE)
     if PENIS_SCENE.search(text):
@@ -354,6 +363,27 @@ def explicit_tags(text: str) -> List[str]:
         if pattern.search(text):
             tags.extend(extra)
     return tags
+
+
+# 只在"画面里只有一个主体"时成立的标签，多人全局栏里必须剔除。
+SINGLE_SUBJECT_TAGS = frozenset({
+    "solo", "pussy focus", "ass focus", "detail focus", "pov", "male pov",
+})
+
+
+def explicit_global_tags(text: str) -> List[str]:
+    """多人合用的露骨层：全场成立的部分，去掉只在单个角色身上成立的那几组。
+
+    base 提示词在 V5 里同时作用于每个角色，私处解剖标签放进去会漂到不该有的位置；
+    但反马赛克、面部细节回填、柔光强调和具体行为（插入、后入、自慰…）都是全场共用的事实，
+    多人一样必须有——此前整层被跳过，导致多人 R18 请求的动作标签一个都进不了提示词。
+
+    另有一批标签只在"画面里只有一个主体"时成立：``solo`` 直接声明单主体，``pussy focus``
+    / ``ass focus`` / ``detail focus`` 和 pov 系列是单主体视角的镜头指令。放进多人全局栏，
+    模型会把三个人挤成一个主体并怼近镜头，构图直接崩掉。
+    """
+    return [tag for tag in explicit_tags(text)
+            if tag not in R18_FEMALE and tag not in SINGLE_SUBJECT_TAGS]
 
 
 def explicit_negatives(text: str) -> List[str]:

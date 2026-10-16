@@ -3,7 +3,13 @@ import json
 
 import httpx
 
-from novelai_image.default_style_policy import FIXED_STYLE_TAIL, normalize_default_style
+from novelai_image.default_style_policy import (
+    FIXED_STYLE_TAIL,
+    MULTI_CEL_WEIGHT,
+    V5_DEFAULT_MULTI_QUALITY,
+    normalize_default_multichar_style,
+    normalize_default_style,
+)
 from novelai_image.nanogpt import NanoGPTTranslator
 
 
@@ -15,6 +21,24 @@ def test_missing_or_variable_cloud_style_restores_same_original_tail():
                                              "detailed eyes", "cool color palette", "soft_lighting", "3d render",
                                              "cgi render", "subsurface scattering", "skin specular"], "雨中穿蓝裙打伞")
     assert first == second == ["masterpiece", *FIXED_STYLE_TAIL, *scene[1:]]
+
+
+def test_structured_multi_default_matches_accepted_v5_quality_and_cel_weight():
+    result = normalize_default_multichar_style(
+        ["2girls", "cel_shading", "rain", "masterpiece"], "两个女孩在雨中"
+    )
+    assert result[:5] == list(V5_DEFAULT_MULTI_QUALITY)
+    assert "anime style" in result
+    assert f"{MULTI_CEL_WEIGHT:g}::cel shading::" in result
+    assert "cel shading" not in result
+    assert result[-1] == "rain"
+
+
+def test_single_default_keeps_the_elaina_cel_weight():
+    """单人验收配方固定 0.5；提高多人权重不能顺带改掉它。"""
+    single = normalize_default_style(["masterpiece", "rain", "cel_shading"], "雨中")
+    assert "cel shading" in single
+    assert MULTI_CEL_WEIGHT != 0.5
 
 
 def test_explicit_details_remain_scoped_to_requested_features():

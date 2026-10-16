@@ -17,6 +17,44 @@ MAX_CANDIDATES = 30
 MAX_SAME_NAME = 3
 _SAFE_TAG = re.compile(r"[a-z0-9][a-z0-9_()': /+\-]{0,127}\Z")
 
+# 两字中文词的命中门槛：短词歧义大，「草莓」「变身」这类通用词会撞上冷门标签。
+MIN_SHORT_TERM_POSTS = 300
+
+
+def core_name(zh: str) -> str:
+    """剥掉「（画师/系列）」这类后缀，只留角色名的核心部分。
+
+    长度闸必须按**实际出现在文本里的那个词**来量。反例：词典里有
+    ``yin_dang_(inmomakuro)``，中文名「淫荡（Inmomakuro）」整串 11 个字符看着很具体，
+    实际命中的只有「淫荡」两个字——它靠这层后缀绕过两字词闸门，以 11 帖的冷门角色
+    身份被注入，整个画风都被带偏。
+    """
+    return re.sub(r"[（(][^)）]*[)）]", "", zh).strip()
+
+
+# 描述里的普通形容词，同时也是某些角色的正式名或别名。
+# 命中后原词会被从描述里剔掉，所以误命中是双份代价：凭空多一个角色锚点，
+# 原描述还被拆坏（`乳白色液体` → `乳 液体`）。这类词热度都不低，
+# MIN_SHORT_TERM_POSTS 拦不住，只能显式排除。
+AMBIGUOUS_SCENE_TERMS = frozenset({
+    "雨天",
+    "白色", "黑色", "红色", "蓝色", "绿色", "黄色", "紫色", "粉色", "橙色",
+    "灰色", "银色", "金色", "棕色", "褐色", "青色", "米色", "肉色",
+})
+
+
+def is_ambiguous_hit(zh: str, count: int, cat: int) -> bool:
+    """这条候选是否应当丢掉（只在角色/版权索引里调用）。
+
+    长度闸对索引内所有类别生效：旧行为就是这样，作品档（cat=3）里的「春日」
+    同样会以 12 帖的冷门条目顶掉正经角色，不能漏。
+    颜色词只拦角色档：作品档里的同名条目不是这里要解决的问题。
+    """
+    if cat == 4 and zh in AMBIGUOUS_SCENE_TERMS:
+        return True
+    return len(core_name(zh)) <= 2 and count < MIN_SHORT_TERM_POSTS
+
+
 # 中文音译常见变体：同音或近音的字归为一类，用于补充匹配。
 # 只收高置信度、且不易与常用词碰撞的字；匹配要求整段每个字都同类，因此精度较高。
 VARIANT_GROUPS = (
@@ -192,6 +230,12 @@ class DanbooruTagIndex:
             del group[MAX_SAME_NAME:]
         result: List[Dict[str, object]] = []
         for zh, group in grouped.items():
+            # 歧义闸设在这里，是因为有两条下游都在用这些候选：官方角色解析
+            # （characters._resolve）和翻译器的词典提示（nanogpt._candidates）。
+            # 只堵前者时，后者仍会把「淫荡（Inmomakuro）」当词典提示喂给模型。
+            # 只对角色/版权索引生效，普通标签索引的两字词大多是正经标签。
+            if self.category == 4 and is_ambiguous_hit(zh, int(group[0][2]), int(group[0][3])):
+                continue
             for _, name, count, cat in group:
                 # count 一并带出去：同一段别名常挂在多个标签上，调用方要按热度收敛。
                 result.append({"zh": zh, "tag": name, "count": count, "cat": cat})

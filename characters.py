@@ -150,8 +150,8 @@ def load_characters(data_dir: Path, prompt: str, user_id: str, catalog_path: str
     found = [role for role in visible.values() if any(matches(label) for label in (role.name, *role.aliases))]
     # 顺序跟着用户写的顺序走：第一位决定拿谁的参考图，按目录顺序排会把别人的图发出去。
     found.sort(key=lambda role: min((spot for spot in (position(label) for label in (role.name, *role.aliases)) if spot >= 0), default=len(prompt)))
-    if len(found) > 4:
-        raise NovelAIError("本次角色超过 4 个，请减少角色后再绘图。")
+    if len(found) > 6:
+        raise NovelAIError("本次角色超过 6 个，请减少角色后再绘图。")
     return found
 
 
@@ -272,12 +272,9 @@ def strip_names(prompt: str, roles: Sequence[Character]) -> str:
     return _WHITESPACE.sub(" ", result).strip(" ,、，。；;")
 
 
-MAX_OFFICIAL_TAGS = 3
-# 两字中文词的命中门槛：短词歧义大，「草莓」「变身」这类通用词会撞上冷门标签。
-MIN_SHORT_TERM_POSTS = 300
-# 词典会收录角色配对简称（如松风天马的「雨天」）；这类常用场景词
-# 不能仅凭角色热度就当成身份。正名与其他明确别名仍按原规则匹配。
-AMBIGUOUS_SCENE_TERMS = frozenset({"雨天"})
+MAX_OFFICIAL_TAGS = 6
+# 歧义闸（MIN_SHORT_TERM_POSTS / AMBIGUOUS_SCENE_TERMS / core_name）定义在
+# tag_index.py：翻译器也走同一份候选，闸设在候选生成处才能同时拦住两条路径。
 
 
 def _resolve(index, text: str, candidate_text: str | None = None) -> Tuple[List[str], List[str], str]:
@@ -295,8 +292,9 @@ def _resolve(index, text: str, candidate_text: str | None = None) -> Tuple[List[
     """
     if index is None or not text:
         return [], [], text
+    # 歧义候选（颜色词、靠括号后缀伪装成长名的短词）已在 candidates() 里拦掉，
+    # 这里拿到的都是可用的；翻译器走的是同一个入口，两条路径不会跑偏。
     hits = index.candidates(candidate_text if candidate_text is not None else text)
-    hits = [hit for hit in hits if int(hit.get("cat", 4)) != 4 or str(hit["zh"]) not in AMBIGUOUS_SCENE_TERMS]
     # 同一段别名常挂在多个标签上：「初音未来」同时是 hatsune_miku、
     # magical_mirai_miku、hatsune_miku_(append) 等六个标签的中文别名。不收敛的话
     # 一个名字就带出一串幽灵角色，把真正的第二个角色挤出 MAX_OFFICIAL_TAGS。
@@ -312,16 +310,38 @@ def _resolve(index, text: str, candidate_text: str | None = None) -> Tuple[List[
         related = int(any(work == suffix or work in suffix for work in matched_works)) if suffix else 0
         return related, int(hit.get("count", 0))
 
-    best: Dict[str, Dict[str, object]] = {}
+    best: Dict[Tuple[int, str], Dict[str, object]] = {}
     for hit in hits:
-        current = best.get(str(hit["zh"]))
+        key = (int(hit.get("cat", 4)), str(hit["zh"]))
+        current = best.get(key)
         if current is None or affinity(hit) > affinity(current):
-            best[str(hit["zh"])] = hit
+            best[key] = hit
     hits = list(best.values())
-    # 两字中文词歧义太大：「天野草莓在变身」会撞上「草莓」「变身」这类通用词，
-    # 命中的又是 12～111 帖的冷门标签。两字词只认热度够高的，长词不受限
-    # （五条悟、伊蕾娜这种本身就很具体，不会误撞）。
-    hits = [hit for hit in hits if len(str(hit["zh"])) > 2 or int(hit.get("count", 0)) >= MIN_SHORT_TERM_POSTS]
+    # 同名作品/角色先按语境消歧：明确的作品修饰语不应凭空多加一个人物。
+    work_terms = {variant_key(str(hit["zh"])) for hit in hits if int(hit.get("cat", 4)) != 4}
+    normalized_text = variant_key(text)
+
+    def character_usage(hit: Dict[str, object]) -> bool:
+        if int(hit.get("cat", 4)) != 4 or variant_key(str(hit["zh"])) not in work_terms:
+            return True
+        term = variant_key(str(hit["zh"]))
+        for match in re.finditer(re.escape(term), normalized_text, re.I):
+            before = text[max(0, match.start() - 2):match.start()]
+            after = text[match.end():match.end() + 48]
+            # 《作品名》、作品风格/世界观/系列、作品中的角色都是作品用途。
+            if before.endswith("《") and after.startswith("》"):
+                continue
+            if re.match(r"\s*(?:的\s*)?(?:画风|风格|作品|系列|世界观|宇宙|原作|动画|动漫|漫画|题材|中的|里的|中|里)", after):
+                continue
+            if after.startswith("的") and any(
+                int(other.get("cat", 4)) == 4 and other is not hit
+                and after[1:].startswith(str(other["zh"])) for other in hits
+            ):
+                continue
+            return True
+        return False
+
+    hits = [hit for hit in hits if character_usage(hit)]
     # 「妮娅」「利卡」这类短名会作为子串命中更长的角色名（音译归一化后更明显），
     # 按归一化形式剔除被包含的那些，避免混入别的角色。
     keys = {id(hit): variant_key(str(hit["zh"])) for hit in hits}
@@ -330,6 +350,9 @@ def _resolve(index, text: str, candidate_text: str | None = None) -> Tuple[List[
         mine = keys[id(hit)]
         for other in hits:
             if other is hit:
+                continue
+            # 同名作品与人物属于不同类别，不能互相吞掉（如哆啦A梦）。
+            if int(other.get("cat", 4)) != int(hit.get("cat", 4)):
                 continue
             theirs = keys[id(other)]
             if mine == theirs:
@@ -359,8 +382,12 @@ def _resolve(index, text: str, candidate_text: str | None = None) -> Tuple[List[
         # 分类取自索引的逐行 category：角色是 4，版权是 3。
         # 靠名字里有没有括号分不开——gojo_satoru 就没有括号，会被误判成作品。
         bucket = characters if int(hit.get("cat", 4)) == 4 else works
-        if tag not in bucket and len(characters) + len(works) < MAX_OFFICIAL_TAGS:
-            bucket.append(tag)
+        if tag not in bucket:
+            if bucket is characters and len(characters) >= MAX_OFFICIAL_TAGS:
+                raise NovelAIError("本次官方角色超过6个，请减少角色后再绘图。")
+            # 作品标签不能占用人物名额，否则同一句里的后几个角色会被静默丢掉。
+            if len(bucket) < MAX_OFFICIAL_TAGS:
+                bucket.append(tag)
         # 角色标签形如 name_(series)，已确定性解决，从文本里摘掉；作品名保留。
         if "(" in tag:
             cleaned = _strip_term(cleaned, term)

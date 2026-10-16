@@ -96,6 +96,8 @@ def test_small_command_stays_on_the_small_canvas(args, size, monkeypatch):
     mock = AsyncMock(return_value=[{"image": "fake", "seed": 123}])
     monkeypatch.setattr("novelai_image.plugin.NovelAIClient.generate", mock)
     obj = plugin()
+    translator = SimpleNamespace(translate_many=AsyncMock(return_value={"positive": "1girl, sitting, window"}))
+    monkeypatch.setattr(obj, "_translator", lambda: translator)
     asyncio.run(obj.draw(stream_id="s", user_id=ADMIN_ID, platform="qq",
                          matched_groups={"kind": "画小图", "args": args}))
     payload = mock.call_args.args[0]

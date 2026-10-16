@@ -45,6 +45,37 @@ def test_all_artists_keep_independent_weight_blocks_in_real_plan(planner):
         assert payload["input"] == final.prompt
 
 
+@pytest.mark.parametrize("model", list(MODEL_ALIASES.values()))
+@pytest.mark.parametrize("preset", PRESETS, ids=lambda preset: preset.key)
+def test_multi_keeps_each_preset_recipe_isolated(planner, monkeypatch, model, preset):
+    """人数变化不得替换各自画风块、预设参数或偷偷注入默认柔光。"""
+    planner._plugin_config_instance.translation.backend = "nanogpt"
+    planner._character_index = lambda: None
+    async def scene(text, negative, identities, **kwargs):
+        return {"base": "3girls", "negative": negative,
+                "description": "Three girls stand together.", "characters": [
+                    {"identity_id": "", "positive": "girl", "negative": "", "position": "auto"}
+                    for _ in range(3)]}
+    translator = SimpleNamespace(translate_scene=AsyncMock(side_effect=scene),
+                                translate_many=AsyncMock(return_value={"positive": "1girl"}))
+    monkeypatch.setattr(planner, "_translator", lambda: translator)
+    # 固定选择被审查档；关键词匹配由现有独立测试覆盖。
+    monkeypatch.setattr("novelai_image.plugin.match_preset", lambda _: preset)
+    single, single_payload, *_ = asyncio.run(planner._plan_request(
+        parse_args("1girl", default_model=model), "lab", "qq"))
+    multi, multi_payload, *_ = asyncio.run(planner._plan_request(
+        parse_args("3girls", default_model=model), "lab", "qq"))
+    blocks = lambda prompt: re.findall(r"[-\d.]+::.*?::", prompt)
+    assert blocks(single.prompt) == blocks(multi.prompt)
+    assert (single.scale, single.steps, single.sampler, single.style_weight) == (
+        multi.scale, multi.steps, multi.sampler, multi.style_weight)
+    assert set(single.negative.split(", ")) <= set(multi.negative.split(", "))
+    assert set(multi.negative.split(", ")) - set(single.negative.split(", ")) <= {
+        "close-up", "cropped", "out of frame", "solo focus"}
+    for key in ("director_reference_images", "director_reference_strength_values", "director_reference_secondary_strength_values"):
+        assert single_payload["parameters"].get(key) == multi_payload["parameters"].get(key)
+
+
 @pytest.mark.parametrize("weight,artist_weight", [(1, "1.05"), (0.8, "0.84"), (1.5, "1.575")])
 def test_manual_weight_multiplies_artist_and_render_without_nesting(planner, monkeypatch, weight, artist_weight):
     preset = StylePreset("artist_test", "test", ("test-style",),
@@ -335,6 +366,10 @@ def test_elaina_negative_calibration_does_not_affect_other_identities(planner, m
     monkeypatch.setattr("novelai_image.plugin.resolve_official_split",
                         lambda index, text, candidate: (characters, [], text))
     baseline = "low quality, cel shading, flat colors, two-tone shading, hard shading"
+    async def scene(text, negative, identities, **kwargs):
+        return {"base": "2girls, rain", "negative": negative, "characters": [
+            {"identity_id": identity["id"], "positive": identity["name"], "negative": "", "position": "auto"} for identity in identities]}
+    monkeypatch.setattr(planner, "_translator", lambda: SimpleNamespace(translate_scene=scene))
     req = parse_args("elaina_(majo_no_tabitabi), rain", default_model=MODEL_ALIASES["高清"],
                      default_negative=baseline)
     final, payload, *_ = asyncio.run(planner._plan_request(req, "lab", "qq"))
@@ -369,9 +404,14 @@ def test_elaina_cel_weight_does_not_leak_to_other_characters(planner, monkeypatc
     monkeypatch.setattr("novelai_image.plugin.resolve_official_split",
                         lambda index, text, candidate: (characters, [], text))
     translator = SimpleNamespace(translate_many=AsyncMock(return_value={"positive": "1girl, cel shading, rain"}))
+    translator.translate_scene = AsyncMock(return_value={"base": "2girls, cel shading, rain", "negative": "low quality", "characters": [
+        {"identity_id": f"official:{i}", "positive": name, "negative": "", "position": "auto"} for i, name in enumerate(characters)]})
     monkeypatch.setattr(planner, "_translator", lambda: translator)
     final, *_ = plan(planner, "女孩站在雨中")
-    assert "cel shading" in final.prompt.split(", ")
+    # 多人默认档会把它抬到 MULTI_CEL_WEIGHT（唯一强制平面媒介的标签）；单人仍是裸标签。
+    from novelai_image.default_style_policy import MULTI_CEL_WEIGHT
+    expected = f"{MULTI_CEL_WEIGHT:g}::cel shading::" if len(characters) > 1 else "cel shading"
+    assert expected in final.prompt.split(", ")
     assert "0.5::cel shading::" not in final.prompt
 
 

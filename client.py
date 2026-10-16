@@ -88,14 +88,17 @@ def validate_image(value: Any, max_bytes: int = MAX_IMAGE_BYTES) -> str:
         raise NovelAIError("图片损坏，无法发送。") from None
     return base64.b64encode(data).decode("ascii")
 
-def build_payload(req: DrawRequest, scale: float, sampler: str, reference: Optional[str] = None, reference_strength: float = 0.75, reference_fidelity: float = 0.6, reference_type: str = "character", extra_references: Optional[List[Dict[str, Any]]] = None, char_captions: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+def build_payload(req: DrawRequest, scale: float, sampler: str, reference: Optional[str] = None, reference_strength: float = 0.75, reference_fidelity: float = 0.6, reference_type: str = "character", extra_references: Optional[List[Dict[str, Any]]] = None, char_captions: Optional[Sequence[Any]] = None, char_negative_captions: Optional[Sequence[Dict[str, Any]]] = None) -> Dict[str, Any]:
     def caption(text: str, characters: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
-        return {"caption": {"base_caption": text, "char_captions": characters or []}, "use_coords": False, "use_order": True}
+        entries = characters or []
+        use_coords = any(item.get("use_coords", False) for item in entries)
+        cleaned = [{"char_caption": item["char_caption"], "centers": item["centers"]} for item in entries]
+        return {"caption": {"base_caption": text, "char_captions": cleaned}, "use_coords": use_coords, "use_order": True}
     # 4.5 的 char_captions 用来单独锚定角色；角色写在独立 caption 里比混在 base 里还原度高。
     # 多角色必须一人一条：挤进同一条，模型会把两个人的发色瞳色混成一个。
-    characters = [{"char_caption": text, "centers": [{"x": 0.5, "y": 0.5}]}
+    characters = [dict(text) if isinstance(text, dict) else {"char_caption": text, "centers": [{"x": 0.5, "y": 0.5}]}
                   for text in (char_captions or []) if text]
-    payload = {"action": "generate", "input": req.prompt, "model": req.model, "parameters": {"width": req.width, "height": req.height, "steps": req.steps, "scale": scale, "seed": req.seed, "n_samples": req.count, "sampler": sampler, "negative_prompt": req.negative, "qualityToggle": True, "v4_prompt": caption(req.prompt, characters), "v4_negative_prompt": caption(req.negative)}}
+    payload = {"action": "generate", "input": req.prompt, "model": req.model, "parameters": {"width": req.width, "height": req.height, "steps": req.steps, "scale": scale, "seed": req.seed, "n_samples": req.count, "sampler": sampler, "negative_prompt": req.negative, "qualityToggle": not req.raw_prompt, "v4_prompt": caption(req.prompt, characters), "v4_negative_prompt": caption(req.negative, list(char_negative_captions or []))}}
     references = ([{"image": reference, "type": reference_type, "strength": reference_strength, "fidelity": reference_fidelity}] if reference else []) + (extra_references or [])
     if references:
         if req.model != "nai-diffusion-4-5-full" or len(references) > 2:

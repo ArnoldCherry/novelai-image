@@ -121,8 +121,13 @@ def test_topic_words_do_not_trigger():
 
 
 def test_female_anatomy_is_weighted_and_keeps_the_wet_group_local():
-    # 柔化画风会磨平结构，分面标签要加权。
-    assert any(tag.startswith("1.3::") and "inner labia" in tag for tag in R18_FEMALE)
+    # 柔化画风会磨平结构，分面标签要加权；但权重不能顶过小画布的像素预算
+    # （512×768 只有 832×1216 的 39%，原 1.3 会把柔光画风挤掉），故上限压到 1.15。
+    assert any(tag.startswith("1.15::") and "inner labia" in tag for tag in R18_FEMALE)
+    for tag in R18_FEMALE:
+        if tag.startswith("1."):
+            weight = float(tag.split("::", 1)[0])
+            assert weight <= 1.15, tag
     for tag in ("detailed vulva", "vaginal opening"):
         assert tag in R18_FEMALE
     # 湿滑组撑的是表面高光，不能摘；但必须留在私处的局部加权块里——

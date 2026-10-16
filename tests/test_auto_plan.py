@@ -5,6 +5,7 @@ import json
 import pytest
 from novelai_image.characters import Character, identity_tags, strip_names
 from novelai_image.parser import parse_args
+from novelai_image.plugin import default_multichar_style_head
 from novelai_image.tag_index import DanbooruTagIndex
 from test_plugin import plugin
 
@@ -75,11 +76,18 @@ def test_style_keyword_does_not_match_an_embedded_character_alias(tmp_path, monk
     assert [item["char_caption"] for item in cel_captions] == ["ganyu_(genshin_impact)"]
     assert "预设画风：赛璐璐" in cel_note
 
+    translator.translate_scene.return_value = {
+        "base": "2girls, standing", "negative": "low quality",
+        "characters": [{"identity_id": "official:0", "positive": "ganyu_(genshin_impact)", "negative": "", "position": "auto"},
+                       {"identity_id": "official:1", "positive": "lulu_(league)", "negative": "", "position": "auto"}]}
     _, character_payload, *_ = asyncio.run(
         obj._plan_request(parse_args("甘雨和璐璐并肩站着"), "a", "qq"))
     character_captions = character_payload["parameters"]["v4_prompt"]["caption"]["char_captions"]
-    assert [item["char_caption"] for item in character_captions] == [
-        "ganyu_(genshin_impact)", "lulu_(league)"]
+    character_base = character_payload["parameters"]["v4_prompt"]["caption"]["base_caption"]
+    head = default_multichar_style_head(character_base)
+    assert head
+    assert [item["char_caption"].removeprefix(head + ", ") for item in character_captions] == [
+        "full body, ganyu_(genshin_impact)", "full body, lulu_(league)"]
 
 
 def test_preview_no_paid_call_no_token(monkeypatch):
@@ -136,6 +144,10 @@ def test_unsupported_or_multi_reference_text_only(model, count, monkeypatch):
     reference = AsyncMock()
     monkeypatch.setattr("novelai_image.plugin.precise_reference", reference)
     obj = plugin()
+    translator = AsyncMock()
+    translator.translate_scene.return_value = {"base": "2girls", "negative": "low quality", "characters": [
+        {"identity_id": f"kb:{i}", "positive": "silver hair", "negative": "", "position": "auto"} for i in range(count)]}
+    monkeypatch.setattr(obj, "_translator", lambda: translator)
     req = parse_args("Alice", default_model=model)
     _, payload, note, mode, _, _ = asyncio.run(obj._plan_request(req, "a", "qq"))
     assert mode == "文字"

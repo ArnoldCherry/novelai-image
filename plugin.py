@@ -27,6 +27,7 @@ from .adaptive import (
     HD_DEFAULT_STYLE,
     STYLE_REQUEST,
     drop_haze,
+    explicit_global_tags,
     explicit_negatives,
     explicit_tags,
     scene_keeps_haze,
@@ -36,8 +37,10 @@ from .adaptive import (
 from .client import NovelAIClient, build_payload, resolve_api_token
 from .characters import identity_tags, load_characters, precise_reference, resolve_official_split, strip_names
 from .exceptions import NovelAIError
+from .default_style_policy import normalize_default_multichar_style, normalize_default_style
 from .glossary import merge_tags
 from .nanogpt import NANOGPT_BASE_URL, NANOGPT_MODEL, NanoGPTTranslator
+from .multichar import caption_payloads, needs_character_split, pipe_sections
 from .presets import (
     PRESETS,
     StylePreset,
@@ -117,6 +120,20 @@ def weighted_style_tags(tags: List[str], weight: float) -> List[str]:
         raise NovelAIError("文字画风权重格式不正确；请使用独立的 数字::标签::，不要嵌套权重。")
     head = [f"{weight:g}::" + ", ".join(plain) + " ::"] if plain else []
     return head + weighted
+
+
+def default_multichar_style_head(prompt: str) -> str:
+    """截出默认柔光正面提示词开头那段完整画风（含 anime style / 2d / 赛璐璐）。
+
+    多人分栏在 V5 里由角色栏决定各自区域的渲染，画风只放在 base 会被人数摊薄。
+    默认柔光的标签又恰好都能在 3D 渲染上成立，压不住官方 3D 观感强的角色，
+    于是柔光叠在 3D 底子上。把这段原样复制进每个角色栏，逐词不动配方。
+    """
+    marker = "cel shading::"
+    end = prompt.find(marker)
+    if end < 0:
+        return ""
+    return prompt[:end + len(marker)]
 
 
 def preset_reference_image(preset: StylePreset, max_bytes: int) -> str:
@@ -382,6 +399,9 @@ HELP = """🎨 NovelAI 绘图
 --style-strength --style-fidelity --reference-mode --style-weight；--ratio --seed --steps --count --negative --model
 中文描述自动翻译为 Danbooru 标签；NanoGPT 翻译会产生其账户用量。
 匹配角色时英文描述也会合并角色资料。
+多人描述自动拆为全局场景与逐角色提示词；可用 全局 | 角色1 | 角色2 显式分栏（最多6人）。
+原样标签：/画图 原样把我的标签传入：<标签>，或 /画图 不要看这个提示词：<标签>。
+原样模式跳过翻译、词库、知识库与自动画风；支持 | 分栏及手动参数。
 4.5 单角色默认同图独立参考角色与画风，两项合计每图额外 10 Anlas（比单项多 5）。
 --参考模式 角色画风 使用一项联合参考，每图额外 5 Anlas；5 仅文字资料。
 点名特色画风可整档换风格，共 45 档：厚涂 / 赛璐璐 / 水彩 / 素描 / 像素 /
@@ -715,6 +735,28 @@ class NovelAIImagePlugin(MaiBotPlugin):
     async def _plan_request(self, req, user_id: str, platform: str, style_reference: str | None = None):
         """生成与免费检查共用同一计划；模型仅接收去掉角色名的本轮描述。"""
         cfg = self.config
+        if req.raw_prompt:
+            # 直通优先于词库、知识库、画风继承、翻译和自动扩写。
+            base, raw_characters = pipe_sections(req.prompt)
+            captions, negative_captions = caption_payloads(raw_characters)
+            scale = req.scale if req.scale is not None else cfg.generation.default_scale
+            sampler = req.sampler if req.sampler is not None else cfg.generation.default_sampler
+            extras = []
+            if style_reference:
+                extras.append({"image": style_reference, "type": "style",
+                               "strength": req.style_strength if req.style_strength is not None else cfg.style.reference_strength,
+                               "fidelity": req.style_fidelity if req.style_fidelity is not None else cfg.style.reference_fidelity})
+            elif any(value is not None for value in (req.style_strength, req.style_fidelity)):
+                raise NovelAIError("原样模式未上传画风图，画风强度与保真度无法生效。")
+            if any(value is not None for value in (req.character_strength, req.character_fidelity)):
+                raise NovelAIError("原样模式不匹配角色知识库，不能设置知识库角色参考强度或保真度。")
+            req = replace(req, prompt=base, scale=scale, sampler=sampler)
+            payload = build_payload(req, scale, sampler, extra_references=extras,
+                                    char_captions=captions, char_negative_captions=negative_captions)
+            note = "原样标签直通：已跳过翻译、词库/角色匹配、预设画风与自动扩写。"
+            if captions:
+                note += f" 已按 | 分栏发送 {len(captions)} 个角色。"
+            return req, payload, note, "文字" + (" + style" if extras else ""), 0.0, 0.0
         automatic = cfg.generation.auto_parameters if req.auto is None else req.auto
         if req.model == MODEL_ALIASES["高清"]:
             if any(value is not None for value in (req.character_strength, req.character_fidelity, req.style_strength, req.style_fidelity)) or req.reference_mode in ("character", "character&style"):
@@ -748,6 +790,7 @@ class NovelAIImagePlugin(MaiBotPlugin):
         for term in supplement_characters:
             if term not in official_characters:
                 official_characters.append(term)
+        multi_scene = needs_character_split(req.prompt, len(roles) + len(official_characters))
         official_works = [*official_works, *supplement_scene]
         reference = None
         note = "未匹配角色，仅使用本轮描述。"
@@ -756,7 +799,7 @@ class NovelAIImagePlugin(MaiBotPlugin):
         scale = req.scale if req.scale is not None else (5.5 if automatic else cfg.generation.default_scale)
         profile = "标准"
         if automatic and req.scale is None:
-            if len(roles) > 1 or re.search(r"复杂动作|打斗|追逐|跳跃|combat|fighting|chasing|jumping|multiple characters", request_text, re.I):
+            if re.search(r"复杂动作|打斗|追逐|跳跃|combat|fighting|chasing|jumping", request_text, re.I):
                 scale, profile = 6.0, "多人或动作"
             elif re.search(r"柔光|柔和|渐变|细线|soft lighting|soft gradient|delicate lines", request_text + " " + " ".join(style_tags(roles)), re.I):
                 scale, profile = 5.3, "柔光细线"
@@ -789,7 +832,7 @@ class NovelAIImagePlugin(MaiBotPlugin):
                 note += "参考图已禁用。"
             elif req.model != MODEL_ALIASES["普通"]:
                 note += "5 Full 仅使用文字角色资料。"
-            elif len(roles) != 1:
+            elif multi_scene:
                 note += "多角色仅使用文字资料，避免参考图混合身份。"
             else:
                 reference = await asyncio.to_thread(precise_reference, roles[0])
@@ -858,7 +901,7 @@ class NovelAIImagePlugin(MaiBotPlugin):
             if "negative" not in req.explicit:
                 existing = [part.strip() for part in req.negative.split(",") if part.strip()]
                 existing += [tag.strip() for tag in base_negatives if tag.strip()]
-                negatives = apply_preset_negatives(existing, preset)
+                negatives = apply_preset_negatives(existing, preset, v5=hd)
                 req = replace(req, negative=", ".join(dict.fromkeys(negatives)))
             reference_note = await self._attach_preset_reference(cfg, req, extras, reference, preset)
             if reference_note:
@@ -915,7 +958,49 @@ class NovelAIImagePlugin(MaiBotPlugin):
         if extra_neg:
             req = replace(req, negative=", ".join(dict.fromkeys(
                 [part.strip() for part in req.negative.split(",") if part.strip()] + extra_neg)))
-        to_translate = {key: value for key, value in {"positive": request_text, "negative": req.negative}.items() if contains_chinese(value)}
+        negative_captions = None
+        if multi_scene:
+            # 多人分栏不应隐式提高默认柔光的 CFG，避免仅因人数改变渲染倾向。
+            if automatic and req.scale is None and style_source in ("高清默认细线柔光预设", "默认细线柔光预设"):
+                scale, profile = 5.5, "默认柔光多人"
+            identities = [{"id": f"kb:{index}", "name": role.name, "aliases": list(role.aliases),
+                           "tags": identity_tags(role, "")} for index, role in enumerate(roles)]
+            identities += [{"id": f"official:{index}", "name": tag, "aliases": [], "tags": [tag]}
+                           for index, tag in enumerate(official_characters)]
+            scene_text = strip_preset_keywords(req.prompt, preset) if preset else req.prompt
+            if cfg.translation.enabled and cfg.translation.backend == "nanogpt":
+                scene = await self._translator().translate_scene(scene_text, req.negative, identities, style_context=style_source)
+            else:
+                base, characters = pipe_sections(scene_text)
+                if not characters or contains_chinese(scene_text + req.negative):
+                    raise NovelAIError("中文多角色自动拆分需要 NanoGPT 翻译；也可使用英文 全局 | 角色1 | 角色2 分栏。")
+                scene = {"base": base, "negative": req.negative, "characters": characters}
+            # 知识库外貌默认值已由拆分器逐人合并并处理显式覆盖；这里只锁定官方名字。
+            identity_map = {identity["id"]: identity["tags"] for identity in identities if identity["id"].startswith("official:")}
+            for character in scene["characters"]:
+                character["positive"] = ", ".join(merge_tags(identity_map.get(character["identity_id"], []),
+                                                           [tag.strip() for tag in character["positive"].split(",") if tag.strip()]))
+            # 官方要求角色栏顺序与坐标一致；居中受事之后必须连同专属负面一起排序。
+            ordered_characters = sorted(scene["characters"], key=lambda character: {
+                "left": 0, "center": 1, "right": 2}.get(character.get("position", "auto"), 1))
+            captions, negative_captions = caption_payloads(ordered_characters, auto_layout=True)
+            # 多人默认保留完整群像及互动空间；用户明确要求局部特写时尊重原构图。
+            close_framing = bool(re.search(r"特写|大头|局部|半身|上半身|close.?up|portrait|upper.?body|bust", scene_text, re.I))
+            framing = [] if close_framing else ["full body", "wide shot"]
+            request_text = ", ".join(merge_tags(framing, scene["base"].split(",")))
+            framing_negative = [] if close_framing else ["close-up", "cropped", "out of frame", "solo focus"]
+            req = replace(req, negative=", ".join(merge_tags(scene["negative"].split(","), framing_negative)))
+            if not close_framing:
+                for positive, negative in zip(captions, negative_captions):
+                    positive["char_caption"] = ", ".join(merge_tags(["full body"], positive["char_caption"].split(",")))
+                    negative["char_caption"] = ", ".join(merge_tags(negative["char_caption"].split(","), framing_negative))
+            # 这里曾按"横向群像提供多人动作空间"把三人及以上的画布自动切成横版。
+            # 实测横画幅会把两侧区域挤成贴边的前景大特写，三人全身入镜的构图反而更差；
+            # 画布方向现在只由用户指令或配置决定，不再按人数改写。
+            # 已绑定到独立栏的身份绝不能经 trimmed 再流回全局栏。
+            trimmed = []
+            note += f" 多角色独立分栏：{len(captions)}个角色，外貌、服装、动作和专属负面分开传入。"
+        to_translate = {} if multi_scene else {key: value for key, value in {"positive": request_text, "negative": req.negative}.items() if contains_chinese(value)}
         if to_translate:
             if not cfg.translation.enabled:
                 raise NovelAIError("检测到中文提示词，但提示词翻译已关闭；请改用英文或启用 translation.enabled。")
@@ -932,6 +1017,10 @@ class NovelAIImagePlugin(MaiBotPlugin):
             req = replace(req, negative=translated.get("negative", req.negative))
         # 角色改由 char_captions 承载，base 提示词里不再重复，避免被画风标签稀释。
         text_tags = [part.strip() for part in request_text.split(",")] if request_text else []
+        if multi_scene and style_source in ("高清默认细线柔光预设", "默认细线柔光预设"):
+            # 结构化多人翻译沿用已验收 V5 默认配方：基础质量词与 0.5 赛璐璐权重。
+            # 只作用于默认档，不改单人历史翻译链、特色画风或上传画风图。
+            text_tags = normalize_default_multichar_style(text_tags, req.prompt)
         if elaina_default:
             # 用户选定的同 seed 配方：仅降低默认译文独立赛璐璐项，不改静态柔光块和负面。
             text_tags = ["0.5::cel shading::" if tag.casefold().replace("_", " ") == "cel shading" else tag
@@ -947,20 +1036,43 @@ class NovelAIImagePlugin(MaiBotPlugin):
             # NovelAI 官方提示建议把画风标签放在提示词前段，减少被内容标签淹没。
             combined[0:0] = weighted_style_tags(inherited_style, style_weight)
         # 露骨内容只追加局部的私处/行为细节标签；整体画风仍由上面那组画风标签决定。
-        explicit_pos = explicit_tags(policy_text)
+        # 多人改走全局层：整层跳过会让请求的动作标签全部丢失，画出来根本没有那件事。
+        explicit_pos = explicit_global_tags(policy_text) if multi_scene else explicit_tags(policy_text)
         if explicit_pos:
             combined = merge_tags(combined, explicit_pos)
         applied_style_weight = style_weight if inherited_style else 0.0
         req = replace(req, prompt=", ".join(combined), scale=scale, sampler=sampler, style_weight=applied_style_weight)
-        if len(req.prompt) > cfg.generation.max_prompt_length:
+        if multi_scene and scene.get("description"):
+            # 标签表达身份和画风；独立自然语言保留动作语义，避免抓握被扁平化为牵手。
+            description = scene["description"]
+            if not close_framing:
+                description = "All " + str(len(captions)) + " characters are visible from head to toe in one wide shot. " + description
+            # 保留默认和画师原有的画风块顺序，不为多人动作重排画风配方。
+            req = replace(req, prompt=req.prompt + ". " + description)
+        if multi_scene and req.model == MODEL_ALIASES["高清"] and contains_chinese(scene_text):
+            # V5 原生支持多语言：保留去掉画风选择词的用户原句，避免译文将抓握降格成牵手。
+            # 角色槽位/画风仍各自独立；这里不扩写原句，也不依赖特定角色或动作规则。
+            req = replace(req, prompt=req.prompt + " " + scene_text.strip(" ,，。") + "。")
+        caption_length = sum(len(item["char_caption"] if isinstance(item, dict) else item) for item in captions)
+        if len(req.prompt) + caption_length > cfg.generation.max_prompt_length:
             raise NovelAIError("合并角色和画风后的提示词过长，请缩短描述后再试。")
+        if multi_scene and style_source in ("高清默认细线柔光预设", "默认细线柔光预设"):
+            # 画风只放在 base 会被角色栏摊薄，默认柔光又没有强制平面媒介的词，
+            # 结果就是柔光叠在角色的官方 3D 先验上。整段画风原样复制进每个角色栏。
+            # 只作用于默认柔光多人；单人、画师预设和上传画风图都不经过这里。
+            # 放在长度闸之后：画风块是 base 已有内容的复制，不是新增长度。
+            head = default_multichar_style_head(req.prompt)
+            if head:
+                for caption in captions:
+                    if isinstance(caption, dict) and caption.get("char_caption"):
+                        caption["char_caption"] = head + ", " + caption["char_caption"]
         if preset is not None and hd:
             note += " 5 Full 当前仅文字画风引导，不发送参考图片；无法保证复刻参考画风。"
         manual = "、".join(req.explicit) or "无"
         note += f" 参数：{'自动' if automatic else '配置'}（{profile}）；手动覆盖：{manual}。引导 {scale:g}；采样器 {sampler}；追加文字画风权重 {applied_style_weight:g}（画风来源：{style_source}；不是图片参考精度）。"
         if extras:
             note += f" 图片画风强度 {extras[0]['strength']:g}；保真度 {extras[0]['fidelity']:g}。"
-        payload = build_payload(req, scale, sampler, reference, strength, fidelity, mode, extras, captions or None)
+        payload = build_payload(req, scale, sampler, reference, strength, fidelity, mode, extras, captions or None, negative_captions)
         return req, payload, note, (mode if reference else "文字") + (" + " + extras[0]["type"] if extras else ""), strength, fidelity
 
     @Command("novelai_preview", description="免费检查绘图计划", pattern=r"^/画图(?:检查|预览)(?:\s+(?P<args>[\s\S]*))?$", timeout_ms=90_000)
@@ -983,9 +1095,13 @@ class NovelAIImagePlugin(MaiBotPlugin):
             reserved = True
             async with gate.semaphore:
                 async with asyncio.timeout(cfg.translation.timeout_seconds + 10):
-                    req, _, note, mode, strength, fidelity = await self._plan_request(req, str(user_id), platform)
+                    req, payload, note, mode, strength, fidelity = await self._plan_request(req, str(user_id), platform)
             reference_detail = "未发送图片参考" if mode == "文字" else f"强度：{strength:g}；保真度：{fidelity:g}"
-            await self.ctx.send.text(f"绘图预览（未调用 NovelAI 生成；NanoGPT 翻译可能计费）\n模型：{req.model}\n尺寸：{req.width}×{req.height}；步数：{req.steps}；数量：{req.count}\n{note}\n参考模式：{mode}；{reference_detail}\n正面：{req.prompt}\n负面：{req.negative}", stream_id)
+            positive_chars = payload["parameters"]["v4_prompt"]["caption"]["char_captions"]
+            negative_chars = payload["parameters"]["v4_negative_prompt"]["caption"]["char_captions"]
+            character_detail = "".join(f"\n角色{i + 1}：{item['char_caption']}\n角色{i + 1}负面：{negative_chars[i]['char_caption'] if i < len(negative_chars) else ''}"
+                                       for i, item in enumerate(positive_chars))
+            await self.ctx.send.text(f"绘图预览（未调用 NovelAI 生成；NanoGPT 翻译可能计费）\n模型：{req.model}\n尺寸：{req.width}×{req.height}；步数：{req.steps}；数量：{req.count}\n{note}\n参考模式：{mode}；{reference_detail}\n正面：{req.prompt}\n负面：{req.negative}{character_detail}", stream_id)
         except NovelAIError as exc:
             await self.ctx.send.text(str(exc), stream_id)
         except TimeoutError:
