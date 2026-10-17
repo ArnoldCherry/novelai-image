@@ -1095,37 +1095,61 @@ class NovelAIImagePlugin(WorkflowMixin, MaiBotPlugin):
         return True, "显示绘图帮助", 1
 
     async def _send_help_images(self, stream_id: str, *, workflow_only: bool = False) -> None:
-        """发送帮助图片；单页直发，多页使用一条合并转发，失败时退回文字。"""
+        """发送帮助图片；合并转发整条失败时对半拆，再不行就逐张发，最后才退回文字。
+
+        NapCat 的转发资源上传会整条失败（实测 15 张 1080px 的页面报
+        `上传转发消息资源失败：15/15`）；逐张直发走的是普通图片消息，不受这个限制。
+        """
         try:
             from .workflow_help import help_images, workflow_help_images
             render = workflow_help_images if workflow_only else help_images
             pages = await asyncio.to_thread(render)
-            if len(pages) == 1:
-                result = await self.ctx.send.image(pages[0], stream_id)
-                sent = result is True or (isinstance(result, dict) and result.get("success") is not False
-                                          and result.get("sent", result.get("success")) is True)
-                if sent:
+            if not pages:
+                logger.warning("帮助图片渲染结果为空")
+            elif len(pages) == 1:
+                if await self._send_help_page(pages[0], stream_id):
                     return
                 logger.warning("单页帮助图片未送达")
-            elif pages:
-                account, nickname = await self._bot_identity()
-                if account:
-                    messages = [{"user_id": account, "nickname": nickname,
-                                 "segments": [{"type": "image", "content": data}]} for data in pages]
-                    result = await self.ctx.send.forward(messages, stream_id, timeout_ms=FORWARD_TIMEOUT_MS)
-                    sent = result is True or (isinstance(result, dict) and result.get("success") is not False
-                                              and result.get("sent", result.get("success")) is True)
-                    if sent:
-                        return
-                    logger.warning("多页帮助图片合并转发未送达")
-                else:
-                    logger.warning("缺少机器人账号，无法合并发送多页帮助图片")
             else:
-                logger.warning("帮助图片渲染结果为空")
+                delivered = await self._send_help_forward(pages, stream_id)
+                if delivered < len(pages):
+                    mid = len(pages) // 2
+                    delivered = await self._send_help_forward(pages[:mid], stream_id)
+                    if delivered == mid:
+                        delivered += await self._send_help_forward(pages[mid:], stream_id)
+                if delivered == len(pages):
+                    return
+                logger.warning("帮助图片合并转发未送达，改逐张发送")
+                for page in pages[delivered:]:
+                    if not await self._send_help_page(page, stream_id):
+                        break
+                else:
+                    return
         except Exception as exc:
             logger.warning("帮助图片发送失败，退回文字：%s", _describe_error(exc))
         text = WORKFLOW_HELP if workflow_only else HELP + "\n" + WORKFLOW_HELP
         await self.ctx.send.text("帮助图片发送失败，以下为文字帮助：\n" + text, stream_id)
+
+    @staticmethod
+    def _sent(result: Any) -> bool:
+        return result is True or (isinstance(result, dict) and result.get("success") is not False
+                                  and result.get("sent", result.get("success")) is True)
+
+    async def _send_help_page(self, page: str, stream_id: str) -> bool:
+        return self._sent(await self.ctx.send.image(page, stream_id))
+
+    async def _send_help_forward(self, pages: List[str], stream_id: str) -> int:
+        """发一条合并转发，返回实际送达的页数；失败返回 0（整条不会部分送达）。"""
+        if not pages:
+            return 0
+        account, nickname = await self._bot_identity()
+        if not account:
+            logger.warning("缺少机器人账号，无法合并发送帮助图片")
+            return 0
+        messages = [{"user_id": account, "nickname": nickname,
+                     "segments": [{"type": "image", "content": data}]} for data in pages]
+        result = await self.ctx.send.forward(messages, stream_id, timeout_ms=FORWARD_TIMEOUT_MS)
+        return len(pages) if self._sent(result) else 0
 
     @staticmethod
     def _message_owner(message: Any) -> tuple[str, str, str, str]:

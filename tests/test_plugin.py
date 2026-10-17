@@ -66,6 +66,15 @@ def test_help():
     assert sent is not None
     obj._ctx.send.text.assert_not_awaited()
 
+def test_help_falls_back_to_single_images_when_forward_fails():
+    # NapCat 的转发资源上传会整条失败；逐张直发仍可用，不应直接退成文字。
+    obj = plugin()
+    obj._ctx.send.forward.return_value = False
+    asyncio.run(obj.help(stream_id="stream"))
+    assert obj._ctx.send.image.await_count == 15
+    obj._ctx.send.text.assert_not_awaited()
+
+
 def test_help_stays_on_its_own_name():
     from maibot_sdk import components
     from novelai_image.plugin import HELP
