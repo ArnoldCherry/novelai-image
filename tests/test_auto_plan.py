@@ -4,8 +4,8 @@ import asyncio
 import json
 import pytest
 from novelai_image.characters import Character, identity_tags, strip_names
+from novelai_image.default_style_policy import multichar_style_core
 from novelai_image.parser import parse_args
-from novelai_image.plugin import default_multichar_style_head
 from novelai_image.tag_index import DanbooruTagIndex
 from test_plugin import plugin
 
@@ -83,10 +83,8 @@ def test_style_keyword_does_not_match_an_embedded_character_alias(tmp_path, monk
     _, character_payload, *_ = asyncio.run(
         obj._plan_request(parse_args("甘雨和璐璐并肩站着"), "a", "qq"))
     character_captions = character_payload["parameters"]["v4_prompt"]["caption"]["char_captions"]
-    character_base = character_payload["parameters"]["v4_prompt"]["caption"]["base_caption"]
-    head = default_multichar_style_head(character_base)
-    assert head
-    assert [item["char_caption"].removeprefix(head + ", ") for item in character_captions] == [
+    core = multichar_style_core()
+    assert [item["char_caption"].removeprefix(core + ", ") for item in character_captions] == [
         "full body, ganyu_(genshin_impact)", "full body, lulu_(league)"]
 
 

@@ -15,6 +15,18 @@ V5_DEFAULT_MULTI_QUALITY = ("masterpiece", "best_quality", "absurdres", "very ae
 # 单人 0.5 是按伊蕾娜同 seed 验收定的；多人时角色栏各带强先验，0.5 压不住。
 # 实测 1.0 会硬成平涂、丢掉柔光，故压到 0.7。
 MULTI_CEL_WEIGHT = 0.7
+# 多人默认柔光放进角色栏的画风核心：从 44 标签里挑出真正决定媒介的那几个。
+# 整段塞进角色栏会占满 V5 共用的注意力预算，把后面的动作标签挤没（插入、自慰
+# 实测完全丢失）；核心超过约 16 个标签时，构图还会把边缘角色挤成前景大特写。
+# 这一段是实测里唯一同时保住动作、构图和柔光观感的长度。
+MULTI_STYLE_CORE = (
+    "soft shading", "airbrushed shading", "gentle shading", "blended shading",
+    "soft edges", "blurred lineart", "soft lineart", "soft focus", "anime style", "2d",
+)
+
+
+def multichar_style_core() -> str:
+    return f"1::{', '.join(MULTI_STYLE_CORE)}::, {MULTI_CEL_WEIGHT:g}::cel shading::"
 _STYLE = re.compile(
     r"\b(?:style|shading|lineart|rendering|palette|brushwork|brushstrokes|dithering|"
     r"watercolou?r|painterly|photorealistic|photorealism|realism|realistic|impasto|render|cgi|"

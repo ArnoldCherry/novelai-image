@@ -218,11 +218,14 @@ def test_multi_default_inherits_same_locked_style_tail_as_single(tmp_path):
     assert "cel shading" not in prompt_tags
 
 
-def test_multi_default_copies_the_style_block_into_each_character_caption(tmp_path):
-    """角色栏各自决定区域渲染；画风只放 base 会被人数摊薄，默认柔光又压不住 3D 先验。"""
+def test_multi_default_puts_a_compact_style_core_in_each_character_caption(tmp_path):
+    """角色栏各自决定区域渲染；画风只放 base 会被人数摊薄，默认柔光又压不住 3D 先验。
+
+    但整段 44 标签会把 V5 共用的注意力预算吃光，动作标签失效——只放精简核心。
+    """
     from unittest.mock import AsyncMock
+    from novelai_image.default_style_policy import multichar_style_core
     from novelai_image.parser import MODEL_ALIASES
-    from novelai_image.plugin import default_multichar_style_head
     obj = make_plugin(tmp_path)
     translator = AsyncMock()
     translator.translate_scene.return_value = {"base": "3girls, holding_hands", "negative": "low quality", "characters": [
@@ -233,11 +236,13 @@ def test_multi_default_copies_the_style_block_into_each_character_caption(tmp_pa
     req = parse_args("三个女生牵手", default_model=MODEL_ALIASES["高清"])
     _, payload, *_ = asyncio.run(obj._plan_request(req, "test", "qq"))
     caption = payload["parameters"]["v4_prompt"]["caption"]
-    head = default_multichar_style_head(caption["base_caption"])
-    assert head and "cel shading::" in head
+    core = multichar_style_core()
+    assert len(core) < 220, "核心必须够短，整段 44 标签会挤掉动作标签"
     assert len(caption["char_captions"]) == 3
     for item in caption["char_captions"]:
-        assert item["char_caption"].startswith(head + ", ")
+        assert item["char_caption"].startswith(core + ", ")
+        # 角色内容（含动作）必须留在核心之后且完整。
+        assert item["char_caption"].removeprefix(core + ", ").startswith("full body, ")
 
 
 def test_generic_slots_and_interaction_graph_without_phrase_rules(monkeypatch):

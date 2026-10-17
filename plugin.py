@@ -37,7 +37,7 @@ from .adaptive import (
 from .client import NovelAIClient, build_payload, resolve_api_token
 from .characters import identity_tags, load_characters, precise_reference, resolve_official_split, strip_names
 from .exceptions import NovelAIError
-from .default_style_policy import normalize_default_multichar_style, normalize_default_style
+from .default_style_policy import multichar_style_core, normalize_default_multichar_style, normalize_default_style
 from .glossary import merge_tags
 from .nanogpt import NANOGPT_BASE_URL, NANOGPT_MODEL, NanoGPTTranslator
 from .multichar import caption_payloads, needs_character_split, pipe_sections
@@ -122,18 +122,12 @@ def weighted_style_tags(tags: List[str], weight: float) -> List[str]:
     return head + weighted
 
 
-def default_multichar_style_head(prompt: str) -> str:
-    """截出默认柔光正面提示词开头那段完整画风（含 anime style / 2d / 赛璐璐）。
-
-    多人分栏在 V5 里由角色栏决定各自区域的渲染，画风只放在 base 会被人数摊薄。
-    默认柔光的标签又恰好都能在 3D 渲染上成立，压不住官方 3D 观感强的角色，
-    于是柔光叠在 3D 底子上。把这段原样复制进每个角色栏，逐词不动配方。
-    """
-    marker = "cel shading::"
-    end = prompt.find(marker)
-    if end < 0:
-        return ""
-    return prompt[:end + len(marker)]
+# 多人默认柔光用的 Large 档画布：Normal 档每个角色只有约 270px，画不出线稿。
+LARGE_CANVAS = {
+    (832, 1216): (1216, 1664),
+    (1216, 832): (1664, 1216),
+    (1024, 1024): (1472, 1472),
+}
 
 
 def preset_reference_image(preset: StylePreset, max_bytes: int) -> str:
@@ -994,6 +988,14 @@ class NovelAIImagePlugin(MaiBotPlugin):
                 for positive, negative in zip(captions, negative_captions):
                     positive["char_caption"] = ", ".join(merge_tags(["full body"], positive["char_caption"].split(",")))
                     negative["char_caption"] = ", ".join(merge_tags(negative["char_caption"].split(","), framing_negative))
+            # 多人默认柔光升到 Large 档。Normal 档摊到每个角色只有约 270px，
+            # 模型画不出线稿和笔触，身体会退化成光滑的体积明暗——观感就是"太 3D"。
+            # 升档后每人约 400px，插画质感回来。只作用于默认柔光多人：用户显式指定
+            # 比例、画小图档和画师预设都不动。
+            if style_source in ("高清默认细线柔光预设", "默认细线柔光预设") and "ratio" not in req.explicit:
+                enlarged = LARGE_CANVAS.get((req.width, req.height))
+                if enlarged:
+                    req = replace(req, width=enlarged[0], height=enlarged[1])
             # 这里曾按"横向群像提供多人动作空间"把三人及以上的画布自动切成横版。
             # 实测横画幅会把两侧区域挤成贴边的前景大特写，三人全身入镜的构图反而更差；
             # 画布方向现在只由用户指令或配置决定，不再按人数改写。
@@ -1058,14 +1060,13 @@ class NovelAIImagePlugin(MaiBotPlugin):
             raise NovelAIError("合并角色和画风后的提示词过长，请缩短描述后再试。")
         if multi_scene and style_source in ("高清默认细线柔光预设", "默认细线柔光预设"):
             # 画风只放在 base 会被角色栏摊薄，默认柔光又没有强制平面媒介的词，
-            # 结果就是柔光叠在角色的官方 3D 先验上。整段画风原样复制进每个角色栏。
+            # 结果就是柔光叠在角色的官方 3D 先验上。但整段 44 标签塞进角色栏会把
+            # V5 共用的注意力预算吃光，动作标签全部失效——所以只放精简核心。
             # 只作用于默认柔光多人；单人、画师预设和上传画风图都不经过这里。
-            # 放在长度闸之后：画风块是 base 已有内容的复制，不是新增长度。
-            head = default_multichar_style_head(req.prompt)
-            if head:
-                for caption in captions:
-                    if isinstance(caption, dict) and caption.get("char_caption"):
-                        caption["char_caption"] = head + ", " + caption["char_caption"]
+            core = multichar_style_core()
+            for caption in captions:
+                if isinstance(caption, dict) and caption.get("char_caption"):
+                    caption["char_caption"] = core + ", " + caption["char_caption"]
         if preset is not None and hd:
             note += " 5 Full 当前仅文字画风引导，不发送参考图片；无法保证复刻参考画风。"
         manual = "、".join(req.explicit) or "无"

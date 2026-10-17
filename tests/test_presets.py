@@ -11,7 +11,8 @@ import pytest
 from PIL import Image
 
 from novelai_image.parser import parse_args
-from novelai_image.plugin import default_multichar_style_head, weighted_style_tags
+from novelai_image.default_style_policy import multichar_style_core
+from novelai_image.plugin import weighted_style_tags
 from test_plugin import plugin
 
 from novelai_image.adaptive import STYLE_REQUEST
@@ -359,11 +360,10 @@ def test_multiple_catalog_roles_get_one_caption_each(monkeypatch):
         obj._plan_request(parse_args("康思勉和尤筠炫站在一起", default_negative="low quality"), "a", "qq"))
     captions = payload["parameters"]["v4_prompt"]["caption"]["char_captions"]
     assert len(captions) == 2
-    # 默认柔光多人会把整段画风复制进每个角色栏；角色内容仍在其后且顺序不变。
-    head = default_multichar_style_head(final.prompt)
-    assert head
-    assert all(item["char_caption"].startswith(head + ", ") for item in captions)
-    texts = [item["char_caption"].removeprefix(head + ", ") for item in captions]
+    # 默认柔光多人会在每个角色栏前加一段精简画风核心；角色内容仍在其后且顺序不变。
+    core = multichar_style_core()
+    assert all(item["char_caption"].startswith(core + ", ") for item in captions)
+    texts = [item["char_caption"].removeprefix(core + ", ") for item in captions]
     assert texts == ["full body, short hair", "full body, light brown hair, long hair"]
     # 身份标签已随各自 caption 走，base 里不能再留一份，否则又混回一起。
     assert "short hair" not in final.prompt
