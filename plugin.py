@@ -127,10 +127,11 @@ def weighted_style_tags(tags: List[str], weight: float) -> List[str]:
     return head + weighted
 
 
-# 多人默认柔光用的 Large 档画布：Normal 档每个角色只有约 270px，画不出线稿。
+# 多人默认柔光用的 Large 档画布：Normal 档每个角色只有约 270px，画不出线稿，
+# 脸也只有约 120px 高；1536×2048 下单人脸约 150px，眼睛和睫毛才立得住。
 LARGE_CANVAS = {
-    (832, 1216): (1216, 1664),
-    (1216, 832): (1664, 1216),
+    (832, 1216): (1536, 2048),
+    (1216, 832): (2048, 1536),
     (1024, 1024): (1472, 1472),
 }
 
@@ -997,7 +998,8 @@ class NovelAIImagePlugin(MaiBotPlugin):
             # 模型画不出线稿和笔触，身体会退化成光滑的体积明暗——观感就是"太 3D"。
             # 升档后每人约 400px，插画质感回来。只作用于默认柔光多人：用户显式指定
             # 比例、画小图档和画师预设都不动。
-            if style_source in ("高清默认细线柔光预设", "默认细线柔光预设") and "ratio" not in req.explicit:
+            if (len(captions) >= 3 and style_source in ("高清默认细线柔光预设", "默认细线柔光预设")
+                    and "ratio" not in req.explicit):
                 enlarged = LARGE_CANVAS.get((req.width, req.height))
                 if enlarged:
                     req = replace(req, width=enlarged[0], height=enlarged[1])

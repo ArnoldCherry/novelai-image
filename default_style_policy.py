@@ -25,8 +25,15 @@ MULTI_STYLE_CORE = (
 )
 
 
+# 角色栏的面部细节组。多人时每张脸只占画布的几分之一，眼睛和睫毛会糊掉；
+# R18 场景单人有 R18_FACE 单独回补，SFW 多人则完全没有，这里统一补上。
+# 只加 60 来字，实测不影响动作标签的还原。
+MULTI_FACE_DETAIL = "1.15::detailed face, detailed eyes, detailed iris, detailed eyelashes::"
+
+
 def multichar_style_core() -> str:
-    return f"1::{', '.join(MULTI_STYLE_CORE)}::, {MULTI_CEL_WEIGHT:g}::cel shading::"
+    return (f"1::{', '.join(MULTI_STYLE_CORE)}::, {MULTI_CEL_WEIGHT:g}::cel shading::, "
+            + MULTI_FACE_DETAIL)
 
 
 # 普通档 default_negative_tags 里已有的反写实词。高清档的 hd_default_negative_tags

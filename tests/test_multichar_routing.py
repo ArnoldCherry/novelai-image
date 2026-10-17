@@ -237,7 +237,8 @@ def test_multi_default_puts_a_compact_style_core_in_each_character_caption(tmp_p
     _, payload, *_ = asyncio.run(obj._plan_request(req, "test", "qq"))
     caption = payload["parameters"]["v4_prompt"]["caption"]
     core = multichar_style_core()
-    assert len(core) < 220, "核心必须够短，整段 44 标签会挤掉动作标签"
+    assert len(core) < 320, "核心必须够短，整段 44 标签会挤掉动作标签"
+    assert "detailed eyelashes" in core, "多人时每张脸更小，需要单独回补面部细节"
     assert len(caption["char_captions"]) == 3
     for item in caption["char_captions"]:
         assert item["char_caption"].startswith(core + ", ")
