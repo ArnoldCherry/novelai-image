@@ -1,6 +1,6 @@
 [project]
 name = "maibot-novelai-image"
-version = "1.3.2"
+version = "1.4.0"
 description = "MaiBot NovelAI 安全文生图插件"
 requires-python = ">=3.11"
 dependencies = ["maibot-sdk>=2.0.0,<3", "httpx>=0.27,<1", "Pillow>=10,<13"]

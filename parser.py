@@ -6,6 +6,7 @@ import secrets
 import shlex
 
 from .exceptions import NovelAIError
+from .multichar import normalize_named_columns
 
 SIZE_PRESETS = {"方图": (1024, 1024), "竖图": (832, 1216), "横图": (1216, 832)}
 # V5 的 Small 档：Opus 的无限生成只覆盖这一档画布，超出就按尺寸×步数计 Anlas。
@@ -81,6 +82,8 @@ def parse_args(text: str, *, default_model: str = MODEL_ALIASES["普通"], defau
     if any(not v for v in values.values()):
         raise NovelAIError("参数缺少值。")
     text_prompt = raw_prompt if raw_prompt is not None else " ".join(prompt).strip()
+    if raw_prompt is None:
+        text_prompt = normalize_named_columns(text_prompt)
     if not text_prompt or len(text_prompt) > max_prompt_length:
         raise NovelAIError(f"提示词不能为空且不能超过 {max_prompt_length} 个字符。")
     sizes = size_presets if size_presets is not None else SIZE_PRESETS
@@ -95,9 +98,13 @@ def parse_args(text: str, *, default_model: str = MODEL_ALIASES["普通"], defau
     models = model_aliases if model_aliases is not None else MODEL_ALIASES
     model = default_model
     if "model" in values:
-        if values["model"] not in models:
-            raise NovelAIError("模型必须是配置中的模型别名。")
-        model = models[values["model"]]
+        # --模型 4.5 / 5 是直接点模型的写法：除 /画图 外默认 5，想回 4.5 就写 4.5。
+        shorthand = {"4.5": MODEL_ALIASES["普通"], "v4.5": MODEL_ALIASES["普通"],
+                     "5": MODEL_ALIASES["高清"], "v5": MODEL_ALIASES["高清"]}
+        choice = models if values["model"] in models else shorthand
+        if values["model"] not in choice:
+            raise NovelAIError("模型必须是配置中的模型别名，或 4.5 / 5。")
+        model = choice[values["model"]]
     negative = values.get("negative", default_negative)
     if len(negative) > max_prompt_length:
         raise NovelAIError("负面提示词过长。")

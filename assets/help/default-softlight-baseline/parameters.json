@@ -1,0 +1,106 @@
+{
+  "source": "C:\\Users\\user\\MaiBot\\data\\images\\225d76f58641d5a7cdc51cd558974a737f732a3e9139f59ea190f0c8503a039b.png",
+  "source_model": "NovelAI Diffusion V5 0ADF9AB7",
+  "pixel_identical_to_user_reference": true,
+  "parameters": {
+    "prompt": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+    "steps": 28,
+    "height": 768,
+    "width": 512,
+    "scale": 5.5,
+    "uncond_scale": 0.0,
+    "cfg_rescale": 0.0,
+    "seed": 121823221,
+    "n_samples": 1,
+    "noise_schedule": "native",
+    "legacy_v3_extend": false,
+    "reference_information_extracted_multiple": [],
+    "reference_strength_multiple": [],
+    "extra_passthrough_testing": {
+      "prompt": null,
+      "uc": null,
+      "hide_debug_overlay": false,
+      "r": 0.0,
+      "eta": 1.0,
+      "negative_momentum": 0.0,
+      "director_reference_descriptions": null,
+      "director_reference_information_extracted": null,
+      "director_reference_strengths": null,
+      "director_reference_secondary_strengths": null,
+      "original_width": null,
+      "original_height": null,
+      "crop_top": null,
+      "crop_left": null,
+      "crash_hydra": false,
+      "upscale": null,
+      "straight_alpha": null,
+      "quality_boost": null,
+      "upscaled_enhance": null,
+      "pd_grid": null
+    },
+    "v4_prompt": {
+      "caption": {
+        "base_caption": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+        "char_captions": [
+          {
+            "char_caption": "ganyu_(genshin_impact)",
+            "centers": [
+              {
+                "x": 0.5,
+                "y": 0.5
+              }
+            ]
+          }
+        ]
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "v4_negative_prompt": {
+      "caption": {
+        "base_caption": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading, dramatic lighting, harsh shadows, overexposed, blown out, washed out, bright, high key",
+        "char_captions": []
+      },
+      "use_coords": false,
+      "use_order": true,
+      "legacy_uc": false
+    },
+    "director_reference_strengths": null,
+    "director_reference_descriptions": null,
+    "director_reference_information_extracted": null,
+    "director_reference_secondary_strengths": null,
+    "upscale": null,
+    "straight_alpha": false,
+    "quality_boost": false,
+    "sampler": "k_euler_ancestral",
+    "controlnet_strength": null,
+    "controlnet_model": null,
+    "dynamic_thresholding": false,
+    "dynamic_thresholding_percentile": 0.999,
+    "dynamic_thresholding_mimic_scale": 10.0,
+    "sm": false,
+    "sm_dyn": false,
+    "skip_cfg_above_sigma": null,
+    "skip_cfg_below_sigma": 0.0,
+    "lora_unet_weights": null,
+    "lora_clip_weights": null,
+    "deliberate_euler_ancestral_bug": true,
+    "prefer_brownian": false,
+    "cfg_sched_eligibility": "enable_for_post_summer_samplers",
+    "explike_fine_detail": false,
+    "minimize_sigma_inf": false,
+    "uncond_per_vibe": true,
+    "wonky_vibe_correlation": true,
+    "stream": "none",
+    "tag_hint_transparent_background": null,
+    "tag_hint_uc_preset": null,
+    "tag_hint_qt": null,
+    "version": 1,
+    "uc": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading, dramatic lighting, harsh shadows, overexposed, blown out, washed out, bright, high key",
+    "request_type": "PromptGenerateRequest",
+    "model_name": "NovelAI Diffusion V5",
+    "model_hash": "0ADF9AB7",
+    "signed_hash": "vv0qjNeIutaQQVqaqWASe3RhgAMclpHUjJxI0HrCUmyIJbx4TV65s6vHFGGsCHiqU/nKj/Vwx75voRV22RGCAg=="
+  }
+}

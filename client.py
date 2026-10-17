@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import zipfile
 
 import httpx
 from urllib.parse import urlparse
@@ -184,3 +185,68 @@ class NovelAIClient:
                 raise NovelAIError("NovelAI 返回图片元数据无效。")
             validated.append({"image": validate_image(image.get("image")), "seed": image["seed"]})
         return validated
+
+    async def augment(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Call the documented Director Tools endpoint and decode its image ZIP."""
+        token = resolve_api_token()
+        if not token:
+            raise NovelAIError("未配置 NOVELAI_API_TOKEN，请管理员设置环境变量并重启 MaiBot。")
+        data = bytearray()
+        attempts = max(1, self.retry_attempts)
+        for attempt in range(1, attempts + 1):
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout), transport=self.transport, follow_redirects=False, trust_env=False) as client:
+                    async with client.stream(
+                        "POST",
+                        OFFICIAL_URL + "/ai/augment-image",
+                        json=payload,
+                        headers={"Authorization": "Bearer " + token, "Accept": "application/zip", "Content-Type": "application/json"},
+                    ) as response:
+                        data = bytearray()
+                        async for chunk in response.aiter_bytes():
+                            data.extend(chunk)
+                            if len(data) > MAX_RESPONSE_BYTES:
+                                raise NovelAIError("响应超过大小限制。")
+                        if not 200 <= response.status_code < 300:
+                            messages = {400: "参数或导演工具不兼容。", 401: "令牌无效、过期或已被替换。", 402: "请检查 NovelAI 订阅或 Anlas 余额。", 403: "账户或该功能没有权限。", 422: "参数或导演工具不兼容。", 429: "请求频率过高，请稍后再试。"}
+                            message = messages.get(response.status_code, "NovelAI 服务异常，请稍后再试。")
+                            correlation = response.headers.get("x-correlation-id", "")
+                            if response.status_code >= 500 and re.fullmatch(r"[A-Za-z0-9]{6}", correlation):
+                                message += " 报告编号：" + correlation
+                            raise NovelAIError(message)
+                break
+            except NovelAIError:
+                raise
+            except httpx.TimeoutException as exc:
+                if attempt >= attempts:
+                    logger.error("NovelAI 导演工具请求超时，已尝试 %d 次", attempt)
+                    raise NovelAIError("NovelAI 请求超时，请稍后再试。") from None
+                logger.warning("NovelAI 导演工具第 %d/%d 次超时（%s），重试", attempt, attempts, type(exc).__name__)
+            except httpx.HTTPError as exc:
+                if attempt >= attempts:
+                    logger.error("NovelAI 导演工具请求失败，已尝试 %d 次，末次异常类型：%s", attempt, type(exc).__name__)
+                    raise NovelAIError("NovelAI 网络连接失败，请检查网络、DNS 或 TLS。") from None
+                logger.warning("NovelAI 导演工具第 %d/%d 次连接失败（%s），重试", attempt, attempts, type(exc).__name__)
+            await asyncio.sleep(_RETRY_BACKOFF_SECONDS * attempt)
+
+        images: List[Dict[str, Any]] = []
+        try:
+            with zipfile.ZipFile(BytesIO(data)) as archive:
+                members = [item for item in archive.infolist() if not item.is_dir() and item.filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
+                if not members or len(members) > 8:
+                    raise NovelAIError("NovelAI 导演工具返回的图片数量无效。")
+                total_image_bytes = 0
+                for item in members:
+                    if item.file_size <= 0 or item.file_size > MAX_IMAGE_BYTES:
+                        raise NovelAIError("NovelAI 导演工具返回的图片大小无效。")
+                    total_image_bytes += item.file_size
+                    if total_image_bytes > MAX_RESPONSE_BYTES:
+                        raise NovelAIError("NovelAI 导演工具返回的图片总大小超过限制。")
+                    image_data = archive.read(item)
+                    encoded = base64.b64encode(image_data).decode("ascii")
+                    images.append({"image": validate_image(encoded)})
+        except NovelAIError:
+            raise
+        except (OSError, zipfile.BadZipFile, RuntimeError, ValueError):
+            raise NovelAIError("NovelAI 导演工具返回了无效 ZIP 图片。") from None
+        return images

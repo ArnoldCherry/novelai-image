@@ -1,0 +1,57 @@
+{
+  "recipe_version": 7,
+  "payload": {
+    "action": "generate",
+    "input": "1girl, sitting, drinking tea, teacup, window, indoors, upper body",
+    "model": "nai-diffusion-5-full",
+    "parameters": {
+      "width": 832,
+      "height": 1216,
+      "steps": 28,
+      "scale": 5.5,
+      "seed": 20261018,
+      "n_samples": 1,
+      "sampler": "k_euler_ancestral",
+      "negative_prompt": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading",
+      "qualityToggle": true,
+      "v4_prompt": {
+        "caption": {
+          "base_caption": "1girl, sitting, drinking tea, teacup, window, indoors, upper body",
+          "char_captions": [
+            {
+              "char_caption": "elaina_(majo_no_tabitabi)",
+              "centers": [
+                {
+                  "x": 0.5,
+                  "y": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        "use_coords": true,
+        "use_order": true
+      },
+      "v4_negative_prompt": {
+        "caption": {
+          "base_caption": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading",
+          "char_captions": [
+            {
+              "char_caption": "",
+              "centers": [
+                {
+                  "x": 0.5,
+                  "y": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        "use_coords": true,
+        "use_order": true
+      }
+    }
+  },
+  "style": null,
+  "identity": []
+}

@@ -1,0 +1,61 @@
+{
+  "recipe_version": 7,
+  "payload": {
+    "action": "generate",
+    "input": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+    "model": "nai-diffusion-5-full",
+    "parameters": {
+      "width": 512,
+      "height": 768,
+      "steps": 28,
+      "scale": 5.5,
+      "seed": 121823221,
+      "n_samples": 1,
+      "sampler": "k_euler_ancestral",
+      "negative_prompt": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading, dramatic lighting, harsh shadows, overexposed, blown out, washed out, bright, high key",
+      "qualityToggle": true,
+      "v4_prompt": {
+        "caption": {
+          "base_caption": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+          "char_captions": [
+            {
+              "char_caption": "elaina_(majo_no_tabitabi)",
+              "centers": [
+                {
+                  "x": 0.5,
+                  "y": 0.5
+                }
+              ]
+            }
+          ]
+        },
+        "use_coords": true,
+        "use_order": true
+      },
+      "v4_negative_prompt": {
+        "caption": {
+          "base_caption": "lowres, worst quality, low quality, bad anatomy, bad hands, extra fingers, watermark, signature, text, logo, username, jpeg artifacts, sharp lines, sharp focus, hard edges, crisp lineart, oversharpened, jagged lines, cel shading, hard shading, banded shading, posterized, flat colors, two-tone shading, dramatic lighting, harsh shadows, overexposed, blown out, washed out, bright, high key",
+          "char_captions": []
+        },
+        "use_coords": true,
+        "use_order": true
+      }
+    }
+  },
+  "style": {
+    "label": "高清默认细线柔光预设",
+    "tags": [
+      "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::",
+      "0.7::colored lineart, thin lines::",
+      "anime style",
+      "0.7::cel shading::",
+      "soft_lighting",
+      "detailed"
+    ],
+    "negative": [],
+    "drop_negative": []
+  },
+  "identity": [
+    "elaina_(majo_no_tabitabi)"
+  ]
+}

@@ -1,0 +1,153 @@
+{
+  "source": "NovelAI official API; native default soft-light planner for Elaina; separate presets only in style examples",
+  "seed": 20261018,
+  "recipe_version": 7,
+  "images": {
+    "base": {
+      "file": "base.png",
+      "command": "/高清画图 伊蕾娜在雨中撑伞，全身 --种子 121823221",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "prompt": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+      "elapsed_seconds": 4.43
+    },
+    "replay": {
+      "file": "replay.png",
+      "command": "/画图复刻 回复",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "prompt": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene",
+      "elapsed_seconds": 4.43
+    },
+    "modified": {
+      "file": "modified.png",
+      "command": "/画图修改 回复 | red scarf",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "prompt": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, cel shading, soft_lighting, detailed, 1girl, full_body, holding_umbrella, rain, wet, wet_clothes, soaked hair, raindrops, puddles, standing, looking_at_viewer, outdoors, rainy_day, overcast_sky, grey_background, street scene, red scarf",
+      "elapsed_seconds": 5.19
+    },
+    "cel": {
+      "file": "cel.png",
+      "command": "/画图对比 赛璐璐-水彩 伊蕾娜坐在花园里读书 --模型 高清 --种子 20261018",
+      "model": "nai-diffusion-5-full",
+      "seed": 20261018,
+      "prompt": "full body, wide shot, 1girl, standing, holding umbrella, rain, wet clothes, soaked hair, raindrops, puddles, outdoors, rainy day, overcast sky, street scene, anime style, official art, clean lineart, 2d, anime coloring, detailed eyes, detailed face, sharp lines, gradient shading, soft lighting",
+      "elapsed_seconds": 5.05
+    },
+    "watercolor": {
+      "file": "watercolor.png",
+      "command": "/画图对比 赛璐璐-水彩 伊蕾娜坐在花园里读书 --模型 高清 --种子 20261018",
+      "model": "nai-diffusion-5-full",
+      "seed": 20261018,
+      "prompt": "full body, wide shot, 1girl, standing, holding umbrella, rain, wet clothes, soaked hair, raindrops, puddles, outdoors, rainy day, overcast sky, street scene, watercolor, watercolor (medium), wet on wet, soft washes, paper texture, bleeding colors, light colors, transparent, ink outline, traditional media, pale colors, delicate lines",
+      "elapsed_seconds": 6.24
+    },
+    "favorite": {
+      "file": "favorite.png",
+      "command": "/画图套用 伊蕾娜水彩 伊蕾娜在窗边喝茶 --模型 高清 --种子 20261018",
+      "model": "nai-diffusion-5-full",
+      "seed": 20261018,
+      "prompt": "1girl, sitting, drinking tea, teacup, window, indoors, upper body, watercolor, watercolor (medium), wet on wet, soft washes, paper texture, bleeding colors, light colors, transparent, ink outline, traditional media, pale colors, delicate lines",
+      "elapsed_seconds": 4.81
+    },
+    "series_garden": {
+      "file": "series_garden.png",
+      "command": "/画图系列 回复 | sitting on a bench, reading a book, flower garden | standing, seaside, sunset, looking at viewer",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "prompt": "sitting on a bench, reading a book, flower garden, black witch outfit",
+      "elapsed_seconds": 4.56
+    },
+    "series_seaside": {
+      "file": "series_seaside.png",
+      "command": "/画图系列 回复 | sitting on a bench, reading a book, flower garden | standing, seaside, sunset, looking at viewer",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "prompt": "standing, seaside, sunset, looking at viewer, full body, black witch outfit, black witch hat",
+      "elapsed_seconds": 4.07
+    },
+    "director_emotion": {
+      "file": "director_emotion.png",
+      "api": "/ai/augment-image",
+      "source_file": "base.png",
+      "command": "/画图导演 回复 表情 开心微笑"
+    },
+    "director_lineart": {
+      "file": "director_lineart.png",
+      "api": "/ai/augment-image",
+      "source_file": "director_witch.png",
+      "command": "/画图导演 回复 线稿"
+    },
+    "director_removebg": {
+      "file": "director_removebg.png",
+      "api": "/ai/augment-image",
+      "source_file": "base.png",
+      "command": "/画图导演 回复 去背景"
+    },
+    "director_colorize": {
+      "file": "director_colorize.png",
+      "api": "/ai/augment-image",
+      "source_file": "director_lineart.png",
+      "command": "/画图导演 回复 上色 浅灰发、蓝色眼睛、黑色魔女袍"
+    },
+    "multichar": {
+      "file": "multichar.png",
+      "model": "nai-diffusion-5-full",
+      "seed": 20261018,
+      "prompt": "1::soft shading, smooth shading, gradient shading, airbrushed shading, detailed skin, detailed face, detailed eyes, beautiful detailed eyes, detailed hair, hair highlights, glossy hair, soft lineart, soft edges, blurred lineart, gentle shading, soft gradient, smooth gradient, blended shading, soft blending, subtle shading, smooth transition, depth of field, blurry background, soft focus, soft lighting, diffused lighting, ambient light, even lighting, soft shadows, gentle light, warm grey, beige, warm ambient light, pale skin, light skin, pastel colors, warm tone, anime style, 2d, clean lineart, contrast, saturated colors, vivid colors ::, 0.7::colored lineart, thin lines::, masterpiece, best_quality, absurdres, very aesthetic, newest, anime style, 0.7::cel shading::, soft_lighting, detailed, full body, wide shot, 2girls, flower garden, holding hands, standing, facing viewer",
+      "characters": [
+        {
+          "char_caption": "1::soft shading, airbrushed shading, gentle shading, blended shading, soft edges, blurred lineart, soft lineart, soft focus, anime style, 2d::, 0.7::cel shading::, 1.15::detailed face::, 1.5::detailed eyes, detailed iris, detailed eyelashes::, full body, elaina_(majo_no_tabitabi), silver hair, long hair, blue eyes, black witch outfit, holding hands",
+          "centers": [
+            {
+              "x": 0.25,
+              "y": 0.5
+            }
+          ]
+        },
+        {
+          "char_caption": "1::soft shading, airbrushed shading, gentle shading, blended shading, soft edges, blurred lineart, soft lineart, soft focus, anime style, 2d::, 0.7::cel shading::, 1.15::detailed face::, 1.5::detailed eyes, detailed iris, detailed eyelashes::, full body, ganyu_(genshin_impact), blue hair, long hair, purple eyes, horns, holding hands",
+          "centers": [
+            {
+              "x": 0.75,
+              "y": 0.5
+            }
+          ]
+        }
+      ],
+      "command": "/高清画图 全局：两人站在花园里牵手，全身-角色1：左侧伊蕾娜，浅灰长发，蓝色眼睛，黑色魔女袍-角色2：右侧甘雨，蓝发紫瞳，头上有角 --比例 横图 --种子 20261018"
+    },
+    "local_blue": {
+      "file": "local_blue.png",
+      "source_file": "modified.png",
+      "model": "nai-diffusion-5-full",
+      "location": {
+        "target": "红围巾",
+        "confidence": 0.98,
+        "coordinate_system": "normalized",
+        "boxes": [
+          [
+            0.265,
+            0.37,
+            0.74,
+            0.92
+          ]
+        ],
+        "prompt": "blue scarf",
+        "remove_tags": [
+          "red scarf"
+        ],
+        "method": "视觉模型定位"
+      },
+      "command": "/画图局部 回复 把伊蕾娜脖子上的红围巾改成蓝色"
+    },
+    "director_witch": {
+      "file": "director_witch.png",
+      "model": "nai-diffusion-5-full",
+      "seed": 121823221,
+      "command": "/高清画图 伊蕾娜穿黑色魔女袍撑伞，半身 --种子 121823221"
+    }
+  },
+  "plans_version": 7
+}

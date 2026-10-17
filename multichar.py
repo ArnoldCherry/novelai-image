@@ -11,6 +11,14 @@ POSITIONS = {"left": (0.2, 0.5), "right": (0.8, 0.5), "top": (0.5, 0.2),
              "bottom": (0.5, 0.8), "center": (0.5, 0.5)}
 
 
+def normalize_named_columns(text: str) -> str:
+    """中文命名分栏使用 -角色N：，不拆 t-shirt、close-up 等标签。"""
+    if not re.match(r"^(?:全局|场景)\s*[:：]", text) or not re.search(r"-\s*角色\s*[1-6AB]\s*[:：]", text, re.I):
+        return text
+    text = re.sub(r"^(?:全局|场景)\s*[:：]\s*", "", text)
+    return re.sub(r"\s*-\s*角色\s*[1-6AB]\s*[:：]\s*", " | ", text, flags=re.I)
+
+
 def expected_character_count(text: str, known_count: int = 0) -> int:
     counts: Dict[str, int] = {}
     for match in re.finditer(r"([1-9])\s*(girls?|boys?|people|characters?)\b", text, re.I):

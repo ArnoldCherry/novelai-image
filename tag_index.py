@@ -43,7 +43,7 @@ AMBIGUOUS_SCENE_TERMS = frozenset({
 })
 
 
-def is_ambiguous_hit(zh: str, count: int, cat: int) -> bool:
+def is_ambiguous_hit(zh: str, count: int, cat: int, text: str = "") -> bool:
     """这条候选是否应当丢掉（只在角色/版权索引里调用）。
 
     长度闸对索引内所有类别生效：旧行为就是这样，作品档（cat=3）里的「春日」
@@ -51,6 +51,11 @@ def is_ambiguous_hit(zh: str, count: int, cat: int) -> bool:
     颜色词只拦角色档：作品档里的同名条目不是这里要解决的问题。
     """
     if cat == 4 and zh in AMBIGUOUS_SCENE_TERMS:
+        return True
+    # “花园”也是新泽西的昵称，但“在花园里读书”是场景，不是第二位角色。
+    if cat == 4 and core_name(zh) == "花园" and re.search(
+        r"(?:在|到|去|走进|坐在|站在).{0,8}花园|花园(?:里|中|内|边|旁|读书|散步)", text
+    ) and not re.search(r"碧蓝航线|新泽西|azur[ _]lane|new[ _]jersey|角色\s*[1-6AB]?\s*[:：]?\s*花园", text, re.I):
         return True
     return len(core_name(zh)) <= 2 and count < MIN_SHORT_TERM_POSTS
 
@@ -234,7 +239,7 @@ class DanbooruTagIndex:
             # （characters._resolve）和翻译器的词典提示（nanogpt._candidates）。
             # 只堵前者时，后者仍会把「淫荡（Inmomakuro）」当词典提示喂给模型。
             # 只对角色/版权索引生效，普通标签索引的两字词大多是正经标签。
-            if self.category == 4 and is_ambiguous_hit(zh, int(group[0][2]), int(group[0][3])):
+            if self.category == 4 and is_ambiguous_hit(zh, int(group[0][2]), int(group[0][3]), text):
                 continue
             for _, name, count, cat in group:
                 # count 一并带出去：同一段别名常挂在多个标签上，调用方要按热度收敛。

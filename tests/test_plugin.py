@@ -36,19 +36,34 @@ def test_gate_takes_a_per_job_cooldown():
         gate.reserve("light")
     assert gate.until["heavy"] - gate.until["light"] == pytest.approx(55, abs=1)
 
+class _CtxConfig:
+    """宿主配置的异步 get 垫片；多页帮助要用它取机器人账号做合并转发。"""
+
+    def __init__(self, values):
+        self._values = values
+
+    async def get(self, key, default=""):
+        return self._values.get(key, default)
+
+
 def plugin():
     obj = NovelAIImagePlugin()
     obj._plugin_config_instance = NovelAIConfig()
-    obj._ctx = SimpleNamespace(send=SimpleNamespace(text=AsyncMock(), image=AsyncMock(return_value=True)), paths=SimpleNamespace(data_dir=tempfile.mkdtemp()))
+    obj._ctx = SimpleNamespace(
+        send=SimpleNamespace(text=AsyncMock(), image=AsyncMock(return_value=True),
+                             forward=AsyncMock(return_value=True)),
+        paths=SimpleNamespace(data_dir=tempfile.mkdtemp()),
+        config=_CtxConfig({"bot.qq_account": "10000", "bot.nickname": "麦麦"}),
+    )
     asyncio.run(obj.on_load())
     return obj
 
 def test_help():
     obj = plugin()
     asyncio.run(obj.help(stream_id="stream"))
-    # 帮助排成图发出去，不再丢一大段文字。
-    data = obj._ctx.send.image.call_args.args[0]
-    assert len(base64.b64decode(data)) > 10_000
+    # 帮助排成图发出去，不再丢一大段文字。多页时走合并转发，单页时直接发图。
+    sent = obj._ctx.send.image.call_args or obj._ctx.send.forward.call_args
+    assert sent is not None
     obj._ctx.send.text.assert_not_awaited()
 
 def test_help_stays_on_its_own_name():

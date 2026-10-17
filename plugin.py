@@ -61,6 +61,7 @@ from .tag_index import DanbooruTagIndex
 from .parser import MODEL_ALIASES, SAMPLERS, SIZE_PRESETS, SMALL_SIZE_PRESETS, parse_args
 from .references import prepare_uploaded_reference
 from .translator import DEFAULT_BASE_URL, DEFAULT_FALLBACK_MODEL, DEFAULT_KEEP_ALIVE, DEFAULT_MODEL, DEFAULT_NUM_GPU, DEFAULT_REPEAT_PENALTY, OllamaTranslator, contains_chinese
+from .workflow import WORKFLOW_HELP, WorkflowMixin, WorkflowPayload
 
 logger = logging.getLogger(__name__)
 
@@ -199,14 +200,6 @@ def shrink_for_forward(data: str, *, compact: bool = False) -> str:
     return data
 
 
-HELP_WIDTH = 900
-HELP_PADDING = 36
-HELP_LINE_HEIGHT = 34
-HELP_TITLE_HEIGHT = 74
-# 命令行 / 参数行 / 说明行各一色：QQ 里长文本会被折叠，排成图才一眼看得全。
-HELP_COLORS = {"cmd": "#8fd3ff", "opt": "#ffd966", "note": "#c9d1d9"}
-
-
 def _wrap_line(line: str, font, limit: int, ruler: ImageDraw.ImageDraw) -> List[str]:
     """按像素宽度折行；能落在空格上就落空格，只有超长的英文长串才硬切。"""
     chunks: List[str] = []
@@ -228,45 +221,6 @@ def _wrap_line(line: str, font, limit: int, ruler: ImageDraw.ImageDraw) -> List[
     if current.strip():
         chunks.append(current.rstrip())
     return chunks
-
-
-def help_image(text: str) -> str:
-    """把帮助文本排成一张图，返回 base64 JPEG。"""
-    try:
-        dirs = Path("C:/Windows/Fonts")
-        title_font = ImageFont.truetype(str(dirs / "msyh.ttc"), 34)
-        body_font = ImageFont.truetype(str(dirs / "msyh.ttc"), 21)
-    except OSError:
-        title_font = body_font = ImageFont.load_default()
-    limit = HELP_WIDTH - HELP_PADDING * 2
-    ruler = ImageDraw.Draw(Image.new("RGB", (1, 1)))
-    blocks: List[Tuple[str, str]] = []
-    for raw in text.splitlines():
-        line = raw.rstrip()
-        if not line:
-            blocks.append(("blank", ""))
-            continue
-        # 标题那一行单独画，正文里去掉它自带的 emoji 前缀。
-        if line.startswith("🎨"):
-            continue
-        kind = "cmd" if line.startswith("/") else "opt" if line.startswith("--") else "note"
-        blocks.extend((kind, chunk) for chunk in _wrap_line(line, body_font, limit, ruler))
-
-    height = HELP_PADDING * 2 + HELP_TITLE_HEIGHT + HELP_LINE_HEIGHT * len(blocks)
-    sheet = Image.new("RGB", (HELP_WIDTH, height), "#10141c")
-    draw = ImageDraw.Draw(sheet)
-    draw.text((HELP_PADDING, HELP_PADDING - 4), "NovelAI 绘图 · 指令与说明", font=title_font, fill="#ffd966")
-    draw.line([(HELP_PADDING, HELP_PADDING + HELP_TITLE_HEIGHT - 26), (HELP_WIDTH - HELP_PADDING, HELP_PADDING + HELP_TITLE_HEIGHT - 26)], fill="#3a4354", width=2)
-    y = HELP_PADDING + HELP_TITLE_HEIGHT
-    for kind, chunk in blocks:
-        if kind == "blank":
-            y += HELP_LINE_HEIGHT // 2
-            continue
-        draw.text((HELP_PADDING, y), chunk, font=body_font, fill=HELP_COLORS[kind])
-        y += HELP_LINE_HEIGHT
-    buffer = BytesIO()
-    sheet.save(buffer, format="JPEG", quality=88)
-    return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
 SHEET_COLUMNS = 6
@@ -377,6 +331,7 @@ HELP = """🎨 NovelAI 绘图
 /画图检查 <提示词>（亦可 /画图预览）：检查最终计划，不生成图片；云端翻译可能计费
 /高清画图 <提示词>：默认 5 Full，正常画布（按尺寸计 Anlas）
 /画小图 <提示词>：5 Full 的小图档（竖 512×768／横 768×512／方 640×640），走订阅无限额度，不计 Anlas
+除 /画图 与 /画图检查 外，其余命令默认 5 Full；任意命令写 --模型 4.5 可切回 4.5。
 /打开画图、/关闭画图：仅管理员，启停本插件绘图；Ollama 模式同时管理翻译模型
 可选参数：--比例 方图|竖图|横图 --种子 0～4294967295
 --步数 1～50 --数量 1～2 --负面 带空格的文本 --模型 普通|高清
@@ -388,7 +343,7 @@ HELP = """🎨 NovelAI 绘图
 --style-strength --style-fidelity --reference-mode --style-weight；--ratio --seed --steps --count --negative --model
 中文描述自动翻译为 Danbooru 标签；NanoGPT 翻译会产生其账户用量。
 匹配角色时英文描述也会合并角色资料。
-多人描述自动拆为全局场景与逐角色提示词；可用 全局 | 角色1 | 角色2 显式分栏（最多6人）。
+多人描述自动拆栏；显式例：全局：两人站在花园-角色1：左侧伊蕾娜-角色2：右侧甘雨（最多6人）。
 原样标签：/画图 原样把我的标签传入：<标签>，或 /画图 不要看这个提示词：<标签>。
 原样模式跳过翻译、词库、知识库与自动画风；支持 | 分栏及手动参数。
 4.5 单角色默认同图独立参考角色与画风，两项合计每图额外 10 Anlas（比单项多 5）。
@@ -409,7 +364,7 @@ torino aqua、as109、lack 等）。画师名支持模糊写法：分隔符、�
 
 class PluginSection(PluginConfigBase):
     enabled: bool = Field(default=True, description="启用绘图")
-    config_version: str = Field(default="1.3.7", description="配置版本")
+    config_version: str = Field(default="1.4.0", description="配置版本")
 
 class ApiSection(PluginConfigBase):
     base_url: str = Field(default="https://image.novelai.net", description="仅允许官方 HTTPS 地址")
@@ -494,6 +449,10 @@ class StyleSection(PluginConfigBase):
     sheet_cell_width: int = Field(default=700, ge=240, le=900, description="/画风预览 对照表单格宽度像素（240～900）；调大更清楚、载荷也更大")
     sheet_quality: int = Field(default=88, ge=60, le=95, description="/画风预览 对照表 JPEG 质量（60～95）")
 
+class WorkflowSection(PluginConfigBase):
+    retention_hours: int = Field(default=24, ge=1, le=168, description="个人任务与临时图片保留小时数（1～168）")
+    persist_images: bool = Field(default=False, description="将任务图片及图片参考写入插件数据目录；默认仅内存保留，重启后图片不可用")
+
 class NovelAIConfig(PluginConfigBase):
     plugin: PluginSection = Field(default_factory=PluginSection)
     api: ApiSection = Field(default_factory=ApiSection)
@@ -503,6 +462,7 @@ class NovelAIConfig(PluginConfigBase):
     permission: PermissionSection = Field(default_factory=PermissionSection)
     characters: CharacterSection = Field(default_factory=CharacterSection)
     style: StyleSection = Field(default_factory=StyleSection)
+    workflow: WorkflowSection = Field(default_factory=WorkflowSection)
 
 class JobGate:
     """在单次同步操作中预留用户和并发名额，不积压收费任务。"""
@@ -528,7 +488,7 @@ class JobGate:
     def release(self, user_id: str) -> None:
         self.active.discard(user_id)
 
-class NovelAIImagePlugin(MaiBotPlugin):
+class NovelAIImagePlugin(WorkflowMixin, MaiBotPlugin):
     config_model = NovelAIConfig
     _tag_index: DanbooruTagIndex | None = None
 
@@ -541,6 +501,12 @@ class NovelAIImagePlugin(MaiBotPlugin):
         for task in self._style_tasks:
             task.cancel()
         await asyncio.gather(*self._style_tasks, return_exceptions=True)
+        tasks = list(self._workflow_tasks.values())
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        self._workflow_cleanup_task.cancel()
+        await asyncio.gather(self._workflow_cleanup_task, return_exceptions=True)
         logger.info("NovelAI 绘图插件已卸载")
 
     async def on_config_update(self, scope: str, config_data: Dict, version: str) -> None:
@@ -556,6 +522,8 @@ class NovelAIImagePlugin(MaiBotPlugin):
         self._preload_task = None
         self._pending_style = {}
         self._style_tasks = set()
+        self._workflow_init()
+        self._workflow_cleanup_task = asyncio.create_task(self._workflow_cleanup())
         self._validate_config()
         if self.config.plugin.enabled and self.config.translation.enabled and self.config.translation.backend == "ollama" and not self._drawing_disabled():
             self._preload_task = asyncio.create_task(self._preload_translation_model())
@@ -1065,6 +1033,18 @@ class NovelAIImagePlugin(MaiBotPlugin):
         if extras:
             note += f" 图片画风强度 {extras[0]['strength']:g}；保真度 {extras[0]['fidelity']:g}。"
         payload = build_payload(req, scale, sampler, reference, strength, fidelity, mode, extras, captions or None, negative_captions)
+        recorded_style_tags = weighted_style_tags(inherited_style, style_weight)
+        if style_source in ("高清默认细线柔光预设", "默认细线柔光预设"):
+            # 默认档的历史翻译尾词同样决定媒介；系列/收藏不能只保存静态块而丢掉它们。
+            for tag in text_tags:
+                normalized = re.sub(r"^[\d.]+::|::$", "", tag).casefold().replace("_", " ").strip()
+                if normalized in ("anime style", "cel shading", "soft lighting", "detailed") and tag not in recorded_style_tags:
+                    recorded_style_tags.append(tag)
+        payload = WorkflowPayload(payload, {"label": style_source,
+            "tags": recorded_style_tags,
+            "negative": list(preset.extra_negatives) if preset else [],
+            "drop_negative": list(preset.drop_negatives) if preset else []} if inherited_style else None,
+            identity=[", ".join(group) for group in identity_groups] or list(official_characters))
         return req, payload, note, (mode if reference else "文字") + (" + " + extras[0]["type"] if extras else ""), strength, fidelity
 
     @Command("novelai_preview", description="免费检查绘图计划", pattern=r"^/画图(?:检查|预览)(?:\s+(?P<args>[\s\S]*))?$", timeout_ms=90_000)
@@ -1106,17 +1086,43 @@ class NovelAIImagePlugin(MaiBotPlugin):
                 gate.release(gate_key)
         return True, "绘图预览已处理", 1
 
-    @Command("novelai_help", description="NovelAI 绘图帮助（排成一张图）", pattern=r"^/画图帮助\s*$")
+    @Command("novelai_help", description="NovelAI 绘图帮助（多页图片）", pattern=r"^/画图帮助\s*$")
     async def help(self, stream_id: str = "", **kwargs):
+        await self._send_help_images(stream_id, workflow_only=False)
+        return True, "显示绘图帮助", 1
+
+    async def _send_help_images(self, stream_id: str, *, workflow_only: bool = False) -> None:
+        """发送帮助图片；单页直发，多页使用一条合并转发，失败时退回文字。"""
         try:
-            data = await asyncio.to_thread(help_image, HELP)
-            sent = await self.ctx.send.image(data, stream_id) if data else None
-            if sent is True or (isinstance(sent, dict) and sent.get("sent") is True):
-                return True, "显示绘图帮助", 1
+            from .workflow_help import help_images, workflow_help_images
+            render = workflow_help_images if workflow_only else help_images
+            pages = await asyncio.to_thread(render)
+            if len(pages) == 1:
+                result = await self.ctx.send.image(pages[0], stream_id)
+                sent = result is True or (isinstance(result, dict) and result.get("success") is not False
+                                          and result.get("sent", result.get("success")) is True)
+                if sent:
+                    return
+                logger.warning("单页帮助图片未送达")
+            elif pages:
+                account, nickname = await self._bot_identity()
+                if account:
+                    messages = [{"user_id": account, "nickname": nickname,
+                                 "segments": [{"type": "image", "content": data}]} for data in pages]
+                    result = await self.ctx.send.forward(messages, stream_id, timeout_ms=FORWARD_TIMEOUT_MS)
+                    sent = result is True or (isinstance(result, dict) and result.get("success") is not False
+                                              and result.get("sent", result.get("success")) is True)
+                    if sent:
+                        return
+                    logger.warning("多页帮助图片合并转发未送达")
+                else:
+                    logger.warning("缺少机器人账号，无法合并发送多页帮助图片")
+            else:
+                logger.warning("帮助图片渲染结果为空")
         except Exception as exc:
             logger.warning("帮助图片发送失败，退回文字：%s", _describe_error(exc))
-        await self.ctx.send.text(HELP, stream_id)
-        return True, "显示绘图帮助", 1
+        text = WORKFLOW_HELP if workflow_only else HELP + "\n" + WORKFLOW_HELP
+        await self.ctx.send.text("帮助图片发送失败，以下为文字帮助：\n" + text, stream_id)
 
     @staticmethod
     def _message_owner(message: Any) -> tuple[str, str, str, str]:
@@ -1235,6 +1241,7 @@ class NovelAIImagePlugin(MaiBotPlugin):
     @Command("novelai_draw", description="NovelAI 文生图；画小图走 5 Full 的 Small 画布，不计 Anlas", pattern=r"^/(?P<kind>高清画图|画小图|画图)(?:\s+(?P<args>[\s\S]*))?$", timeout_ms=300_000)
     async def draw(self, stream_id: str = "", user_id: str = "", group_id: str = "", platform: str = "", matched_groups=None, **kwargs):
         reserved = False
+        workflow_owner = None
         user_id, group_id = str(user_id), str(group_id)
         gate_key = platform + ":" + user_id if user_id and platform else ""
         try:
@@ -1255,6 +1262,9 @@ class NovelAIImagePlugin(MaiBotPlugin):
             req = parse_args(groups.get("args") or "", default_model=cfg.api.hd_model if hd else cfg.api.model, default_ratio=cfg.generation.default_ratio, default_steps=cfg.generation.default_steps, default_negative=cfg.generation.default_negative_prompt, max_images=cfg.generation.max_images, max_prompt_length=cfg.generation.max_prompt_length, model_aliases=cfg.api.model_aliases, size_presets=SMALL_SIZE_PRESETS if small else None)
             if not resolve_api_token():
                 raise NovelAIError("未配置 NOVELAI_API_TOKEN，请管理员设置环境变量并重启 MaiBot。")
+            workflow_owner = self._workflow_owner(platform, stream_id, user_id)
+            if workflow_owner in self._workflow_tasks:
+                raise NovelAIError("当前绘图任务正在处理中，请等待或 /画图取消。")
             settings = (cfg.limits.max_concurrent_jobs, cfg.limits.cooldown_seconds)
             if self._gate is None or (self._gate_settings != settings and not self._gate.active):
                 self._gate, self._gate_settings = JobGate(*settings), settings
@@ -1264,12 +1274,15 @@ class NovelAIImagePlugin(MaiBotPlugin):
             self._gate.reserve(gate_key, cfg.limits.hd_cooldown_seconds * req.count if heavy else None)
             gate = self._gate
             reserved = True
+            self._workflow_tasks[workflow_owner] = asyncio.current_task()
             await self.ctx.send.text("🎨 已收到请求，正在准备绘图……", stream_id)
             async with gate.semaphore:
                 async with asyncio.timeout(cfg.api.timeout_seconds + (cfg.translation.timeout_seconds if cfg.translation.enabled else 0)):
                     req, payload, role_note, _, _, _ = await self._plan_request(req, user_id, platform, kwargs.get("style_reference"))
                     await self.ctx.send.text(role_note, stream_id)
                     images = await self._client().generate(payload)
+            workflow_owner = self._workflow_owner(platform, stream_id, user_id)
+            job_ids = await self._workflow_record(workflow_owner, payload, images, "普通绘图", payload.style if isinstance(payload, WorkflowPayload) else None)
             # 按群号开折叠：名单内的群不管画什么都折成一条合并转发，其余群和私聊逐张直发。
             collapsed = False
             listed_group_delivery_failed = False
@@ -1293,11 +1306,15 @@ class NovelAIImagePlugin(MaiBotPlugin):
                             f"图片已生成，但合并转发发送失败，原图已保留（任务号：{pending_path.name}）。请联系管理员补发。",
                             stream_id)
             else:
-                for image in images:
+                for index, image in enumerate(images):
                     try:
-                        sent = await self.ctx.send.image(image["image"], stream_id)
+                        sent = await self.ctx.send.image(image["image"], stream_id, return_details=True)
                         if sent is not True and not (isinstance(sent, dict) and sent.get("sent") is True):
                             raise NovelAIError("图片生成成功，但聊天图片发送失败。")
+                        if isinstance(sent, dict):
+                            message_id = str(sent.get("message_id") or sent.get("id") or "")
+                            if message_id:
+                                self._workflow_replies[(workflow_owner, message_id)] = job_ids[index]
                     except NovelAIError:
                         raise
                     except Exception:
@@ -1314,6 +1331,8 @@ class NovelAIImagePlugin(MaiBotPlugin):
             logger.error("绘图处理失败，异常类型：%s", type(exc).__name__)
             await self.ctx.send.text("绘图处理失败，请管理员检查插件状态。", stream_id)
         finally:
+            if workflow_owner is not None and self._workflow_tasks.get(workflow_owner) is asyncio.current_task():
+                self._workflow_tasks.pop(workflow_owner, None)
             if reserved:
                 gate.release(gate_key)
         return True, "绘图请求已处理", 1

@@ -29,6 +29,15 @@ def test_aliases_spaces(args):
     assert req.seed == 123 and req.count == 2 and req.model == MODEL_ALIASES["高清"]
     assert req.negative.startswith("low quality, bad hands")
 
+@pytest.mark.parametrize("token,expected", [("4.5", "普通"), ("v4.5", "普通"), ("5", "高清"), ("v5", "高清")])
+def test_model_can_be_named_by_version(token, expected):
+    # 除 /画图 外默认 5；想回 4.5 就直接写 --模型 4.5。
+    assert parse_args(f"castle --模型 {token}").model == MODEL_ALIASES[expected]
+
+def test_configured_alias_wins_over_version_shorthand():
+    req = parse_args("castle --模型 5", model_aliases={"5": "custom-model"})
+    assert req.model == "custom-model"
+
 @pytest.mark.parametrize("args", ["", "--seed 1", "castle --seed -1", "castle --seed 4294967296", "castle --steps 0", "castle --steps 51", "castle --count 3", "castle --unknown foo", "castle --steps", "castle --seed 1 --seed 2", "castle --ratio 任意", "castle --model fake", 'castle --negative "bad'])
 def test_invalid(args):
     with pytest.raises(NovelAIError):
