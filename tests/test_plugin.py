@@ -119,6 +119,28 @@ def test_small_command_stays_on_the_small_canvas(args, size, monkeypatch):
     assert payload["model"] == MODEL_ALIASES["高清"]
     assert (payload["parameters"]["width"], payload["parameters"]["height"]) == size
 
+@pytest.mark.parametrize("kind,alias", [("高清", "高清"), ("", "普通")])
+def test_preview_follows_the_command_model(kind, alias, monkeypatch):
+    # /高清画图检查、/高清画图预览 要和 /高清画图 同档；/画图检查 仍然是 4.5。
+    monkeypatch.setenv("NOVELAI_API_TOKEN", "MOCK_ONLY_NOT_A_REAL_CREDENTIAL")
+    obj = plugin()
+    asyncio.run(obj.preview(stream_id="s", user_id=ADMIN_ID, platform="qq",
+                            matched_groups={"kind": kind, "args": "castle"}))
+    assert "模型：" + MODEL_ALIASES[alias] in obj._ctx.send.text.call_args.args[0]
+
+
+def test_preview_pattern_accepts_the_hd_forms():
+    from maibot_sdk import components
+    pattern = getattr(NovelAIImagePlugin.preview, components._COMPONENT_INFO_ATTR).command_pattern
+    for text in ("/画图检查", "/画图预览 猫", "/高清画图检查", "/高清画图预览 猫"):
+        match = re.match(pattern, text)
+        assert match, text
+        assert match.groupdict()["kind"] == ("高清" if text.startswith("/高清") else None)
+    # 命令名是"高清 + 画图检查"，不能被 /画图 的生成命令抢走。
+    draw = getattr(NovelAIImagePlugin.draw, components._COMPONENT_INFO_ATTR).command_pattern
+    assert not re.match(draw, "/高清画图检查")
+
+
 @pytest.mark.parametrize("kind", ["画小图", "高清画图"])
 def test_only_the_plain_hd_command_gets_the_long_cooldown(kind, monkeypatch):
     # 小图那档不计费，按 5 Full 的 40 秒/张卡着只是让人白等；正常画布的高清则照旧。

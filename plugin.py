@@ -329,6 +329,7 @@ HELP = """🎨 NovelAI 绘图
 /画图 <提示词>：默认 4.5 Full
 /画图画风 <提示词>：5 分钟内在原聊天发送一张图片，仅参考画风
 /画图检查 <提示词>（亦可 /画图预览）：检查最终计划，不生成图片；云端翻译可能计费
+/高清画图检查、/高清画图预览：同档检查 5 Full 计划，不生成图片
 /高清画图 <提示词>：默认 5 Full，正常画布（按尺寸计 Anlas）
 /画小图 <提示词>：5 Full 的小图档（竖 512×768／横 768×512／方 640×640），走订阅无限额度，不计 Anlas
 除 /画图 与 /画图检查 外，其余命令默认 5 Full；任意命令写 --模型 4.5 可切回 4.5。
@@ -1047,7 +1048,7 @@ class NovelAIImagePlugin(WorkflowMixin, MaiBotPlugin):
             identity=[", ".join(group) for group in identity_groups] or list(official_characters))
         return req, payload, note, (mode if reference else "文字") + (" + " + extras[0]["type"] if extras else ""), strength, fidelity
 
-    @Command("novelai_preview", description="免费检查绘图计划", pattern=r"^/画图(?:检查|预览)(?:\s+(?P<args>[\s\S]*))?$", timeout_ms=90_000)
+    @Command("novelai_preview", description="免费检查绘图计划", pattern=r"^/(?P<kind>高清)?画图(?:检查|预览)(?:\s+(?P<args>[\s\S]*))?$", timeout_ms=90_000)
     async def preview(self, stream_id: str = "", user_id: str = "", group_id: str = "", platform: str = "", matched_groups=None, **kwargs):
         reserved = False
         gate_key = platform + ":" + str(user_id) if user_id and platform else ""
@@ -1058,7 +1059,9 @@ class NovelAIImagePlugin(WorkflowMixin, MaiBotPlugin):
                 raise NovelAIError("绘图当前已关闭。")
             if cfg.permission.mode == "whitelist" and str(user_id) not in cfg.permission.user_ids and str(group_id) not in cfg.permission.group_ids:
                 raise NovelAIError("你或当前群不在绘图允许名单中。")
-            req = parse_args((matched_groups or {}).get("args") or "", default_model=cfg.api.model, default_ratio=cfg.generation.default_ratio, default_steps=cfg.generation.default_steps, default_negative=cfg.generation.default_negative_prompt, max_images=cfg.generation.max_images, max_prompt_length=cfg.generation.max_prompt_length, model_aliases=cfg.api.model_aliases)
+            # /高清画图检查 与 /高清画图 同档：默认 5 Full；/画图检查 仍是 4.5。
+            hd = (matched_groups or {}).get("kind") == "高清"
+            req = parse_args((matched_groups or {}).get("args") or "", default_model=cfg.api.hd_model if hd else cfg.api.model, default_ratio=cfg.generation.default_ratio, default_steps=cfg.generation.default_steps, default_negative=cfg.generation.default_negative_prompt, max_images=cfg.generation.max_images, max_prompt_length=cfg.generation.max_prompt_length, model_aliases=cfg.api.model_aliases)
             settings = (cfg.limits.max_concurrent_jobs, cfg.limits.cooldown_seconds)
             if self._gate is None or (self._gate_settings != settings and not self._gate.active):
                 self._gate, self._gate_settings = JobGate(*settings), settings
