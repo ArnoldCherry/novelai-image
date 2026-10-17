@@ -37,7 +37,12 @@ from .adaptive import (
 from .client import NovelAIClient, build_payload, resolve_api_token
 from .characters import identity_tags, load_characters, precise_reference, resolve_official_split, strip_names
 from .exceptions import NovelAIError
-from .default_style_policy import multichar_style_core, normalize_default_multichar_style, normalize_default_style
+from .default_style_policy import (
+    multichar_realism_negative,
+    multichar_style_core,
+    normalize_default_multichar_style,
+    normalize_default_style,
+)
 from .glossary import merge_tags
 from .nanogpt import NANOGPT_BASE_URL, NANOGPT_MODEL, NanoGPTTranslator
 from .multichar import caption_payloads, needs_character_split, pipe_sections
@@ -1067,6 +1072,9 @@ class NovelAIImagePlugin(MaiBotPlugin):
             for caption in captions:
                 if isinstance(caption, dict) and caption.get("char_caption"):
                     caption["char_caption"] = core + ", " + caption["char_caption"]
+            # 高清档默认负面只有两个词，普通档那组反写实词在这条路径上一直缺失。
+            # 负面不占正向注意力预算，所以不会像画风标签那样挤掉动作。
+            req = replace(req, negative=req.negative.rstrip(", ") + ", " + multichar_realism_negative())
         if preset is not None and hd:
             note += " 5 Full 当前仅文字画风引导，不发送参考图片；无法保证复刻参考画风。"
         manual = "、".join(req.explicit) or "无"

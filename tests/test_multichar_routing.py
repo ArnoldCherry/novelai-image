@@ -245,6 +245,33 @@ def test_multi_default_puts_a_compact_style_core_in_each_character_caption(tmp_p
         assert item["char_caption"].removeprefix(core + ", ").startswith("full body, ")
 
 
+def test_multi_default_restores_the_realism_negatives_missing_from_the_hd_preset(tmp_path):
+    """高清档默认负面只有 dramatic lighting / harsh shadows；普通档那组词一直没接上。
+
+    负面不占正向注意力预算，所以补它不会像画风标签那样挤掉动作。
+    """
+    from unittest.mock import AsyncMock
+    from novelai_image.default_style_policy import multichar_realism_negative
+    from novelai_image.parser import MODEL_ALIASES
+    obj = make_plugin(tmp_path)
+    translator = AsyncMock()
+    translator.translate_scene.return_value = {"base": "3girls, holding_hands", "negative": "low quality", "characters": [
+        {"identity_id": "", "positive": "blue hair", "negative": "", "position": "left"},
+        {"identity_id": "", "positive": "blonde hair", "negative": "", "position": "center"},
+        {"identity_id": "", "positive": "brown hair", "negative": "", "position": "right"}]}
+    obj._translator = lambda: translator
+    planned, *_ = asyncio.run(obj._plan_request(
+        parse_args("三个女生牵手", default_model=MODEL_ALIASES["高清"]), "lab", "qq"))
+    assert multichar_realism_negative() in planned.negative
+
+    # 单人不经过这里，负面保持原样。
+    translator.translate_many = AsyncMock(return_value={"positive": "1girl, rain"})
+    translator.translate_scene.return_value = {"base": "1girl, rain", "negative": "low quality", "characters": []}
+    single_req, *_ = asyncio.run(obj._plan_request(
+        parse_args("雨中打伞的伊蕾娜", default_model=MODEL_ALIASES["高清"]), "lab", "qq"))
+    assert multichar_realism_negative() not in single_req.negative
+
+
 def test_generic_slots_and_interaction_graph_without_phrase_rules(monkeypatch):
     monkeypatch.setenv("NANOGPT_API_KEY", "MOCK_ONLY_NOT_A_REAL_CREDENTIAL")
     scene = {"base": ["2girls"], "negative": [], "characters": {

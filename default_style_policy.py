@@ -27,6 +27,21 @@ MULTI_STYLE_CORE = (
 
 def multichar_style_core() -> str:
     return f"1::{', '.join(MULTI_STYLE_CORE)}::, {MULTI_CEL_WEIGHT:g}::cel shading::"
+
+
+# 普通档 default_negative_tags 里已有的反写实词。高清档的 hd_default_negative_tags
+# 只有 dramatic lighting / harsh shadows，这组词在 HD 路径上一直缺失——单人靠
+# HD_ELAINA_LOCKED_NEGATIVES 补了两个词，多人则完全没有。负面不占正向注意力预算，
+# 补进来不会像画风标签那样挤掉动作。
+MULTI_REALISM_NEGATIVES = (
+    "realistic skin", "photorealistic", "hyperrealistic", "3d", "3d render",
+    "skin pores", "oily skin", "wax figure", "doll",
+)
+MULTI_REALISM_WEIGHT = 0.9
+
+
+def multichar_realism_negative() -> str:
+    return f"{MULTI_REALISM_WEIGHT:g}::{', '.join(MULTI_REALISM_NEGATIVES)}::"
 _STYLE = re.compile(
     r"\b(?:style|shading|lineart|rendering|palette|brushwork|brushstrokes|dithering|"
     r"watercolou?r|painterly|photorealistic|photorealism|realism|realistic|impasto|render|cgi|"
