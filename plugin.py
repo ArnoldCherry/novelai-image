@@ -127,15 +127,6 @@ def weighted_style_tags(tags: List[str], weight: float) -> List[str]:
     return head + weighted
 
 
-# 多人默认柔光用的 Large 档画布：Normal 档每个角色只有约 270px，画不出线稿，
-# 脸也只有约 120px 高；1536×2048 下单人脸约 150px，眼睛和睫毛才立得住。
-LARGE_CANVAS = {
-    (832, 1216): (1536, 2048),
-    (1216, 832): (2048, 1536),
-    (1024, 1024): (1472, 1472),
-}
-
-
 def preset_reference_image(preset: StylePreset, max_bytes: int) -> str:
     """把内置风格参考图读成官方 Precise Reference 画布；文件缺失时返回空串。"""
     path = preset.reference_path
@@ -994,15 +985,9 @@ class NovelAIImagePlugin(MaiBotPlugin):
                 for positive, negative in zip(captions, negative_captions):
                     positive["char_caption"] = ", ".join(merge_tags(["full body"], positive["char_caption"].split(",")))
                     negative["char_caption"] = ", ".join(merge_tags(negative["char_caption"].split(","), framing_negative))
-            # 多人默认柔光升到 Large 档。Normal 档摊到每个角色只有约 270px，
-            # 模型画不出线稿和笔触，身体会退化成光滑的体积明暗——观感就是"太 3D"。
-            # 升档后每人约 400px，插画质感回来。只作用于默认柔光多人：用户显式指定
-            # 比例、画小图档和画师预设都不动。
-            if (len(captions) >= 3 and style_source in ("高清默认细线柔光预设", "默认细线柔光预设")
-                    and "ratio" not in req.explicit):
-                enlarged = LARGE_CANVAS.get((req.width, req.height))
-                if enlarged:
-                    req = replace(req, width=enlarged[0], height=enlarged[1])
+            # 画布维持 Normal 档。曾试过把三人及以上升到 1216×1664 / 1536×2048，
+            # 但那是在反写实负面还没补的时候——缺口补上后，大画布会多长出细节，
+            # 观感反而更写实。同 seed 对比 2 人基准，Normal 档最贴合柔光目标。
             # 这里曾按"横向群像提供多人动作空间"把三人及以上的画布自动切成横版。
             # 实测横画幅会把两侧区域挤成贴边的前景大特写，三人全身入镜的构图反而更差；
             # 画布方向现在只由用户指令或配置决定，不再按人数改写。
