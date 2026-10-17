@@ -158,10 +158,6 @@ HD_DEFAULT_NEGATIVE_STYLE = ('dramatic lighting', 'harsh shadows')
 # 19:17 默认配方不追加新的反写实排除词。
 HD_DEFAULT_ONLY_NEGATIVE_STYLE = ()
 HD_DEFAULT_DROP_NEGATIVES = frozenset()
-# 只校准 V5 官方单角色伊蕾娜的模型先验，不改变甘雨、托帕等其他默认角色。
-HD_ELAINA_DROP_NEGATIVES = frozenset()
-# 保留原负面的柔化效果，只轻压照片感和 3D 渲染；同 seed 实图见 gentle_no_realism。
-HD_ELAINA_LOCKED_NEGATIVES = ("0.35::photorealistic, 3d render::",)
 
 # 提亮并加雾的这一组：暗室内景里有暖光源和暗背景垫着，柔化出来就是参考图的观感；
 # 换到白天、黄昏、夜景、雪、海边，它就把整张冲成灰白——夜变成淡彩白天，夕阳没有夕阳色。
@@ -245,9 +241,8 @@ R18_BASE = (
 # 露骨场景把模型的注意力拉向解剖细节，脸容易被挤小、拉长、眼睛被发丝挡住。
 # 单独一层在露骨时无条件补回面部细节；与 R18_BASE 同级，不随性别分支跳过。
 R18_FACE = (
-    "1.2::detailed face, detailed eyes::",
-    "detailed iris",
-    "detailed eyelashes",
+    "1.2::detailed face::",
+    "1.5::detailed eyes, detailed iris, detailed eyelashes::",
 )
 # 露骨内容补一块柔光强调。实测同一份请求体、同种子，只把画布从 832×1216 换到
 # 512×768（Small 档），画面就明显滑向写实：皮肤出照片质感、高光变硬。
@@ -264,13 +259,24 @@ R18_FEMALE = (
     "1.05::glistening pussy, wet pussy, vaginal lubrication::",
     "detailed vulva",
     "vaginal opening",
-    "detailed nipples",
-    "areola",
+)
+# 胸部细节与私处解剖分开：裸体、口交、乳交这些场景需要胸，但不需要把镜头怼到私处。
+R18_BREAST = ("detailed nipples", "areola")
+# 只有描述确实涉及私处或用到私处的行为时才追加 R18_FEMALE。
+# 裸体、topless、口交、手交、足交、乳交都不在这个集合里——无条件追加会让每张 R18
+# 都凭空长出一个阴部分镜，哪怕提示词里根本没提。
+GENITAL_SCENE = re.compile(
+    r"阴部|私处|小穴|肉穴|阴道|阴唇|阴蒂|胯下|下体|私部|"
+    r"自慰|手淫|抠|插入|抽插|后入|做爱|性交|骑乘|正常位|传教士|中出|舔阴|肛交|潮吹|爱液|淫水|"
+    r"pussy|vulva|vagina|clitoris|labia|"
+    r"masturbat|fingering|penetrat|doggystyle|missionary|cowgirl|creampie|"
+    r"cunnilingus|anal sex|spread pussy|vulval",
+    re.I,
 )
 R18_PENIS = ("detailed penis", "glans detail", "veined penis", "precum")
 R18_ACTS = (
     (re.compile(r"自慰|手淫|抠|揉|masturbat|fingering", re.I),
-     ("spread legs", "spread pussy", "pussy focus", "fingering", "solo")),
+     ("spread legs", "spread pussy", "fingering", "solo")),
     (re.compile(r"后入|背后位|从后面|趴|doggystyle|from behind", re.I),
      ("from behind", "doggystyle", "ass focus", "top-down bottom-up")),
     (re.compile(r"骑乘|骑乘位|女上|cowgirl", re.I),
@@ -319,8 +325,10 @@ R18_ACTS = (
 # 取景层：同一行为在不同取景下要补的东西不同。特写要压局部细节，全身要交代姿势，
 # 第一人称必须立住摄像机的立场，否则模型会把镜头拉回第三人称。
 R18_FRAMING = (
+    # 只收紧镜头，不追加 detail focus：那个标签会让模型另开一块局部放大插图，
+    # 于是每张都凭空多出一个阴部分镜。
     (re.compile(r"特写|近景|局部|close-?up|zoom", re.I),
-     ("close-up", "detail focus")),
+     ("close-up",)),
     (re.compile(r"全身|全身像|full body|wide shot", re.I),
      ("full body", "wide shot")),
     (re.compile(r"俯视|从上往下|from above|bird'?s eye", re.I),
@@ -356,7 +364,10 @@ def explicit_tags(text: str) -> List[str]:
         return []
     tags = list(R18_BASE) + list(R18_FACE) + list(R18_SOFT_STYLE)
     if not (MALE_ONLY.search(text) and not FEMALE_MARK.search(text)):
-        tags.extend(R18_FEMALE)
+        tags.extend(R18_BREAST)
+        # 私处解剖只在描述涉及私处时追加，否则裸体/口交类的图会被强行拉出阴部分镜。
+        if GENITAL_SCENE.search(text):
+            tags.extend(R18_FEMALE)
     if PENIS_SCENE.search(text):
         tags.extend(R18_PENIS)
     for pattern, extra in R18_ACTS + R18_FRAMING:

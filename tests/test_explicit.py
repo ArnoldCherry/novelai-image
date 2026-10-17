@@ -1,6 +1,7 @@
 """露骨标签分层：通用质感 / 女性解剖 / 男根 / 具体行为，并挡住自发生长的兽耳。"""
 from novelai_image.adaptive import (
     R18_BASE,
+    R18_BREAST,
     R18_FACE,
     R18_FEMALE,
     R18_NEGATIVE_STYLE,
@@ -30,16 +31,26 @@ def test_sfw_scene_gets_nothing():
         assert explicit_negatives(text) == []
 
 
-def test_base_and_female_layers_always_applied():
-    tags = explicit_tags("1girl, nude")
-    for tag in R18_BASE + R18_FEMALE:
-        assert tag in tags
+def test_female_anatomy_needs_an_explicit_genital_reference():
+    """裸体 ≠ 要私处特写。没提私处却注入阴部细节，会把镜头强行拉到私处。"""
+    nude = explicit_tags("1girl, nude")
+    for tag in R18_BASE + R18_BREAST:
+        assert tag in nude
+    for tag in R18_FEMALE:
+        assert tag not in nude, "没提私处却注入了阴部细节"
+
+    genital = explicit_tags("1girl, nude, 用手指扒开阴部")
+    for tag in R18_FEMALE:
+        assert tag in genital
 
 
 def test_masturbation_act_adds_spread_and_focus_without_penis():
     tags = explicit_tags("刻晴脱光衣服自慰，用手抠自己阴部")
-    for tag in ("spread legs", "pussy focus", "fingering", "solo"):
+    for tag in ("spread legs", "fingering", "solo"):
         assert tag in tags
+    # pussy focus 会把镜头强行怼到私处；detail focus 会另开一块局部放大插图。
+    assert "pussy focus" not in tags
+    assert "detail focus" not in tags
     # 单人自慰加男根标签是反向破坏。
     for tag in R18_PENIS:
         assert tag not in tags

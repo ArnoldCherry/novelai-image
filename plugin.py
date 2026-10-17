@@ -20,8 +20,6 @@ from .adaptive import (
     DEFAULT_NEGATIVE_STYLE,
     DEFAULT_STYLE,
     HD_DEFAULT_DROP_NEGATIVES,
-    HD_ELAINA_DROP_NEGATIVES,
-    HD_ELAINA_LOCKED_NEGATIVES,
     HD_DEFAULT_NEGATIVE_STYLE,
     HD_DEFAULT_ONLY_NEGATIVE_STYLE,
     HD_DEFAULT_STYLE,
@@ -926,10 +924,6 @@ class NovelAIImagePlugin(MaiBotPlugin):
                         combined = existing + excluded
                         if hd:
                             combined = [tag for tag in combined if tag.casefold().replace("_", " ") not in HD_DEFAULT_DROP_NEGATIVES]
-                        if elaina_default:
-                            # 只校准官方单角色伊蕾娜；其他默认角色、组合角色及用户明确负面不受影响。
-                            combined = [tag for tag in combined if tag.casefold().replace("_", " ") not in HD_ELAINA_DROP_NEGATIVES]
-                            combined += list(HD_ELAINA_LOCKED_NEGATIVES)
                         req = replace(req, negative=", ".join(dict.fromkeys(combined)))
         else:
             style_source = "无"
@@ -1016,7 +1010,9 @@ class NovelAIImagePlugin(MaiBotPlugin):
             # 只作用于默认档，不改单人历史翻译链、特色画风或上传画风图。
             text_tags = normalize_default_multichar_style(text_tags, req.prompt)
         if elaina_default:
-            # 用户选定的同 seed 配方：仅降低默认译文独立赛璐璐项，不改静态柔光块和负面。
+            # 用户选定的同 seed 配方：只降低默认译文里的赛璐璐项，不改静态柔光块。
+            # 此前还追加了 0.35::photorealistic, 3d render:: 的锁定负面，两项叠加会把
+            # 脸压得发灰、眼睛发闷；实测只保留这一项时脸部才和甘雨等角色同档。
             text_tags = ["0.5::cel shading::" if tag.casefold().replace("_", " ") == "cel shading" else tag
                          for tag in text_tags]
         combined = merge_tags([*official_works, *trimmed], text_tags)

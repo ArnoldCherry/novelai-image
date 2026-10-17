@@ -238,7 +238,9 @@ def test_v5_default_restores_softening_and_preserves_manual_scaling(elaina_plann
     negatives = set(final.negative.split(", "))
     assert {"cel shading", "flat colors"} <= negatives
     assert {"hard edges", "crisp lineart", "low quality", "custom baseline"} <= negatives
-    assert "0.35::photorealistic, 3d render::" in final.negative
+    # 伊蕾娜专属的 0.35::photorealistic, 3d render:: 锁定负面已移除：和 cel 0.5 叠加
+    # 会把脸压得发灰、眼睛发闷，实测比甘雨等角色的默认档更差。
+    assert "0.35::photorealistic, 3d render::" not in final.negative
     assert "volumetric lighting" not in negatives
     assert payload["parameters"]["v4_negative_prompt"]["caption"]["base_caption"] == final.negative
 
@@ -255,7 +257,7 @@ def test_v5_default_has_verified_realism_guards(elaina_planner):
     assert elaina_planner.config.style.hd_default_only_negative_tags == []
     from novelai_image.adaptive import BRIGHT_NEGATIVE
     assert set(final.negative.split(", ")) == {"low quality", "blurry", "dramatic lighting", "harsh shadows",
-                                               "0.35::photorealistic", "3d render::", *BRIGHT_NEGATIVE}
+                                               *BRIGHT_NEGATIVE}
     assert set(elaina_planner.config.style.hd_default_negative_tags) == {"dramatic lighting", "harsh shadows"}
 
 
@@ -289,13 +291,13 @@ def test_v5_default_preserves_both_configured_negative_sources(elaina_planner):
     negatives = set(final.negative.split(", "))
     assert {"CEL_SHADING", "cel shading", "flat colors", "two-tone shading"} <= negatives
     assert {"base marker", "style marker", "only marker", "hard shading"} <= negatives
-    assert "0.35::photorealistic, 3d render::" in final.negative
+    assert "0.35::photorealistic, 3d render::" not in final.negative
     assert payload["parameters"]["negative_prompt"] == final.negative
 
 
 @pytest.mark.parametrize("style", ["torino", "watercolor", "cel shading"])
-def test_v5_default_fixed_negative_policy_does_not_touch_named_styles(elaina_planner, monkeypatch, style):
-    monkeypatch.setattr("novelai_image.plugin.HD_ELAINA_LOCKED_NEGATIVES", ("default policy marker",))
+def test_v5_default_fixed_negative_policy_does_not_touch_named_styles(elaina_planner, style):
+    elaina_planner.config.style.hd_default_only_negative_tags = ["default policy marker"]
     req = parse_args("1girl, rain, " + style, default_model=MODEL_ALIASES["高清"],
                      default_negative="low quality, photorealistic")
     final, *_ = asyncio.run(elaina_planner._plan_request(req, "lab", "qq"))
@@ -416,9 +418,14 @@ def test_elaina_cel_weight_does_not_leak_to_other_characters(planner, monkeypatc
 
 
 def test_elaina_saved_translation_replays_user_accepted_payload_exactly(elaina_planner, monkeypatch):
+    """保存的译文仍逐字重放；只是不再追加伊蕾娜专属的锁定负面。"""
     from pathlib import Path
     import json
     expected = json.loads((Path(__file__).parent / "fixtures" / "elaina_cel05_accepted.json").read_text(encoding="utf-8"))
+    lock = ", 0.35::photorealistic, 3d render::"
+    expected["parameters"]["negative_prompt"] = expected["parameters"]["negative_prompt"].removesuffix(lock)
+    neg_caption = expected["parameters"]["v4_negative_prompt"]["caption"]
+    neg_caption["base_caption"] = neg_caption["base_caption"].removesuffix(lock)
     cloud = "masterpiece" + expected["input"].split("masterpiece", 1)[1]
     cloud = cloud.replace("0.5::cel shading::", "cel shading")
     translator = SimpleNamespace(translate_many=AsyncMock(return_value={"positive": cloud}))
