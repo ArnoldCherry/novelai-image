@@ -670,9 +670,11 @@ def _keyword_hits(text: str, keyword: str) -> bool:
 
     画师名很多是常见英文片段（hiten 落在 whiten 里、rella 落在 corella 里），
     纯子串匹配会把它们误当成点名；加词边界后只在独立出现时才算。
+    边界只按 ASCII 字母数字算：Python 的 ``\\w`` 把汉字也算作单词字符，
+    于是 ``rella画风`` 这种紧贴中文的写法匹配不上，整档画风被静默丢掉。
     """
     if keyword.isascii():
-        return re.search(r"(?<!\w)" + re.escape(keyword) + r"(?!\w)", text, re.I) is not None
+        return re.search(r"(?<![A-Za-z0-9_])" + re.escape(keyword) + r"(?![A-Za-z0-9_])", text, re.I) is not None
     return keyword.casefold() in text.casefold()
 
 
@@ -739,7 +741,9 @@ def strip_preset_keywords(text: str, preset: StylePreset) -> str:
             if not _keyword_hits(result, form):
                 continue
             if form.isascii():
-                result = re.sub(r"(?<!\w)" + re.escape(form) + r"(?!\w)", " ", result, flags=re.I)
+                # 连带吃掉紧跟的“画风/风格”：否则剩下的通用词会被翻译成 style 标签。
+                result = re.sub(r"(?<![A-Za-z0-9_])" + re.escape(form) + r"(?![A-Za-z0-9_])\s*(?:画风|风格)?",
+                                " ", result, flags=re.I)
             else:
                 result = re.sub(re.escape(form), " ", result, flags=re.I)
     return result

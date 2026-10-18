@@ -144,6 +144,25 @@ def test_explicit_per_character_props_survive_model_omission(monkeypatch):
     assert "ganyu" not in result["base"]
 
 
+def test_scene_split_budget_grows_with_character_count(monkeypatch):
+    # 每个角色都要返回正面、专属负面、位置和互动；写满姿势的长描述会被 512+256/人
+    # 的预算截断，finish_reason=length 后整个请求报“拆分未完整结束”。
+    monkeypatch.setenv("NANOGPT_API_KEY", "MOCK_ONLY_NOT_A_REAL_CREDENTIAL")
+    seen = {}
+    scene = {"base": ["2girls"], "negative": [], "interactions": [], "description": "", "characters": {
+        "anonymous:0": {"positive": ["girl"], "negative": [], "position": "auto"},
+        "anonymous:1": {"positive": ["girl"], "negative": [], "position": "auto"}}}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop",
+                                                      "message": {"role": "assistant", "content": json.dumps(scene)}}]})
+
+    translator = NanoGPTTranslator(transport=httpx.MockTransport(handler))
+    asyncio.run(translator.translate_scene("两人坐在床上，一人躺着，一人跪着", "", []))
+    assert seen["max_tokens"] >= 1536
+
+
 @pytest.mark.parametrize("text,count", [("1girl, 1boy", 2), ("三个女生和一个男生", 4), ("一男一女", 2), ("3girls", 3)])
 def test_multiple_subject_counts_in_one_sentence(text, count):
     assert needs_character_split(text)

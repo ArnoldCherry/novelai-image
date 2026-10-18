@@ -27,6 +27,7 @@ from novelai_image.presets import (
     match_preset,
     preset_names,
     preset_render_tags,
+    strip_preset_keywords,
 )
 
 
@@ -376,6 +377,13 @@ def test_artist_names_need_whole_word_match():
     assert match_preset("1girl, with a corella bird") is None
     assert match_preset("1girl, hiten style").key == "artist_hiten"
     assert match_preset("1girl, wlop").key == "artist_wlop"
+
+
+def test_artist_name_glued_to_chinese_still_selects_the_preset():
+    # 多角色分栏里常写成「…，rella画风」；\w 会把汉字算进边界，整档画风被静默丢掉。
+    assert match_preset("右侧甘雨，表情猥琐，rella画风").key == "artist_rella"
+    assert match_preset("用rella画风画少女").key == "artist_rella"
+    assert strip_preset_keywords("少女，rella画风", match_preset("少女，rella画风")) == "少女， "
 
 
 def _models_with_sheets(obj):

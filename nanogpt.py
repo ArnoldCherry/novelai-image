@@ -447,7 +447,10 @@ class NanoGPTTranslator:
                 "style_context": style_context}
         payload = {"model": self.model, "messages": [{"role": "system", "content": instruction},
                    {"role": "user", "content": json.dumps(data, ensure_ascii=False)}],
-                   "temperature": 0.1 if not attempt else 0.2, "frequency_penalty": 0.6, "max_tokens": min(MAX_OUTPUT_TOKENS, 512 + 256 * minimum),
+                   # 每个角色除正面标签外还有专属负面、位置和互动，512+256/人 对写满
+                   # 姿势与动作的场景不够：JSON 被截断后 finish_reason=length，整个请求
+                   # 直接报"拆分未完整结束"。按人数给足，两人约 1.8k tokens。
+                   "temperature": 0.1 if not attempt else 0.2, "frequency_penalty": 0.6, "max_tokens": min(MAX_OUTPUT_TOKENS, 768 + 512 * minimum),
                    "stream": False, "reasoning": {"exclude": True},
                    "response_format": {"type": "json_schema", "json_schema": {"name": "character_scene", "strict": True, "schema": schema}}}
         choice = await self._post(payload, token, deadline=deadline)
