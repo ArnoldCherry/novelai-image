@@ -569,10 +569,6 @@ _ARTIST_TABLE: Tuple[Tuple[str, str, Tuple[str, ...], str, bool], ...] = (
      "painterly, semi-realistic, muted colors, desaturated", True),
     ("loundraw", "loundraw", ("loundraw", "画师loundraw"),
      "anime style, cel shading, flat colors, chibi", True),
-    # 半写实、细节重的画法：负面不能再压 painterly / semi-realistic，
-    # 否则正好把这一档的手感挡掉，只剩平涂。
-    ("machi", "machi", ("machi", "画师machi"),
-     "anime style, cel shading, flat colors, chibi", True),
 )
 
 PRESETS = PRESETS + tuple(
@@ -588,6 +584,24 @@ PRESETS = PRESETS + tuple(
         reference_fidelity=0.25,
     )
     for slug, artist, keywords, negative, weighted in _ARTIST_TABLE
+)
+
+# machi 的标签在 4.5 上几乎无效，靠通用画师底只会得到发灰发白的结果。
+# 这里单独给一套写实度受控的渲染词：明亮、高饱和、衣物细节，并按 5 Full 的观感校准。
+PRESETS = PRESETS + (
+    StylePreset(
+        key="artist_machi",
+        label="画师·machi",
+        keywords=("machi", "画师machi"),
+        tags=("1.05::artist:machi::", "detailed skin", "detailed face", "detailed eyes", "detailed hair",
+              "glossy hair", "detailed clothes", "vivid colors", "saturated colors", "clean lineart",
+              "intricate details", "soft lighting", "depth of field"),
+        extra_negatives=("dark", "low key", "heavy shadows", "plastic skin", "flat colors", "chibi"),
+        drop_negatives=HARD_EDGE_NEGATIVES,
+        reference="artist_machi.png",
+        reference_strength=0.7,
+        reference_fidelity=0.25,
+    ),
 )
 
 # 原图逐档审计后的候选参数；实际插件同种子出图记录见调校报告。
