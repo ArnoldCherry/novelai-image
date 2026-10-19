@@ -2462,9 +2462,9 @@
     },
     "artist_machi": {
       "source": "..\novelai_image\u0007ssets\\styles\u000b5\u0007rtist_machi.png",
-      "sha256": "0f5ed03d0fcd76d3134644c6cbd339c4e7b4cc8fe45a86425330b1ea56490dc7",
+      "sha256": "a55f89dd4c9e637140aac91c7ed23ba14339e62aca48cc3cda3173da6bcc1b3c",
       "tags": [
-        "1.15::artist:machi::, detailed skin, detailed face, detailed eyes, detailed hair, glossy hair, detailed clothes, ornate patterns, fabric texture, rich colors, intricate details, soft lighting, depth of field"
+        "1.15::artist:machi::, detailed skin, detailed face, detailed eyes, detailed hair, glossy hair, detailed clothes, ornate patterns, fabric texture, rich colors, intricate details, soft lighting, depth of field, elaina_(majo_no_tabitabi)"
       ],
       "negative_tags": [
         "lowres",
@@ -2501,10 +2501,7 @@
         "anime style",
         "chibi"
       ],
-      "removed_reference_conflicts": [
-        "cel shading",
-        "flat colors"
-      ],
+      "removed_reference_conflicts": [],
       "drop_negatives": [
         "banded shading",
         "cel shading",
