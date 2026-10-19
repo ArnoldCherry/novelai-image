@@ -2459,6 +2459,61 @@
       "steps": 28,
       "sampler": "k_euler_ancestral",
       "style_weight": 1.0
+    },
+    "artist_machi": {
+      "source": "..\novelai_image\u0007ssets\\styles\u000b5\u0007rtist_machi.png",
+      "sha256": "433e44facf2b026805f7632180b83cf439031aa0dde9af05dfd34c20891e649d",
+      "tags": [
+        "1.05::artist:machi::, detailed skin, detailed face, detailed eyes, detailed hair, soft lighting, depth of field"
+      ],
+      "negative_tags": [
+        "lowres",
+        "worst quality",
+        "low quality",
+        "bad anatomy",
+        "bad hands",
+        "extra fingers",
+        "watermark",
+        "signature",
+        "text",
+        "logo",
+        "username",
+        "jpeg artifacts",
+        "oversharpened",
+        "jagged lines",
+        "dramatic lighting",
+        "high contrast",
+        "harsh shadows",
+        "vivid colors",
+        "saturated",
+        "realistic skin",
+        "photorealistic",
+        "hyperrealistic",
+        "3d",
+        "3d render",
+        "skin pores",
+        "oily skin",
+        "wax figure",
+        "doll",
+        "painterly",
+        "semi-realistic",
+        "sharp lines"
+      ],
+      "drop_negatives": [
+        "sharp focus",
+        "hard edges",
+        "crisp lineart",
+        "cel shading",
+        "hard shading",
+        "banded shading",
+        "posterized",
+        "flat colors",
+        "two-tone shading"
+      ],
+      "scale": 5.5,
+      "steps": 28,
+      "sampler": "k_euler_ancestral",
+      "style_weight": 1.0
     }
   }
 }

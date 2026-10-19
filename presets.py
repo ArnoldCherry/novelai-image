@@ -553,6 +553,8 @@ _ARTIST_TABLE: Tuple[Tuple[str, str, Tuple[str, ...], str, bool], ...] = (
      "painterly, semi-realistic, muted colors, desaturated", True),
     ("loundraw", "loundraw", ("loundraw", "画师loundraw"),
      "anime style, cel shading, flat colors, chibi", True),
+    ("machi", "machi", ("machi", "画师machi"),
+     "painterly, semi-realistic, sharp lines, high contrast", True),
 )
 
 PRESETS = PRESETS + tuple(
@@ -657,7 +659,7 @@ def preview_entries(v5: bool = False) -> List[Tuple[str, Path]]:
 def preview_groups(v5: bool = False) -> Tuple[List[Tuple[str, Path]], List[Tuple[str, Path]]]:
     """拆成（媒介档, 画师档）。
 
-    画师档有 38 款，全平铺会把一条转发撑得很长，所以查看画风把它们收进嵌套转发。
+    画师档有 39 款，全平铺会把一条转发撑得很长，所以查看画风把它们收进嵌套转发。
     """
     entries = preview_entries(v5)
     media = [item for item in entries if not item[1].stem.startswith("artist_")]

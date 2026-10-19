@@ -62,12 +62,12 @@
 
 ---
 
-## 四、画风预设（45 档）
+## 四、画风预设（46 档）
 
 | 类别 | 数量 | 档位 |
 |---|---|---|
 | 媒介档 | 8 | 默认柔光 / 厚涂 / 赛璐璐 / 水彩 / 素描 / 像素 / 写实 / 锐利线稿 |
-| 画师档 | 38 | ciloranko、rella、wlop、mika pikazo、hiten、fuzichoco、￦ANKE、ke-ta、ask、yoneyama mai、krenz、kantoku、shimada fumikane、as109、lack、misaki kurehito、modare、atdan、sakimichan、kuroboshi kouhaku、**torino aqua**、so-bin、iren lovel、aroa、mocha (cotton)、hitsukuya、cola、tamaki、momoko、konya karasue、achiki、tokkyu、rurudo、mifuru、miv4t、fajyobore、emyo、loundraw |
+| 画师档 | 39 | ciloranko、rella、wlop、mika pikazo、hiten、fuzichoco、￦ANKE、ke-ta、ask、yoneyama mai、krenz、kantoku、shimada fumikane、as109、lack、misaki kurehito、modare、atdan、sakimichan、kuroboshi kouhaku、**torino aqua**、so-bin、iren lovel、aroa、mocha (cotton)、hitsukuya、cola、tamaki、momoko、konya karasue、achiki、tokkyu、rurudo、mifuru、miv4t、fajyobore、emyo、loundraw、machi |
 
 **命中规则**：
 

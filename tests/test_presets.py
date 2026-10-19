@@ -508,7 +508,7 @@ def test_fuzzy_matching_still_respects_word_boundaries():
 
 def test_artist_name_matching_is_fuzzy():
     from novelai_image.presets import match_artist, artist_presets
-    assert len(artist_presets()) == 38
+    assert len(artist_presets()) == 39
     # 严格写法、大小写、分隔符、只写一半都要认
     assert match_artist("torino aqua").key == "artist_torino_aqua"
     assert match_artist("torino").key == "artist_torino_aqua"
