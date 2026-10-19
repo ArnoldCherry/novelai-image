@@ -2462,9 +2462,9 @@
     },
     "artist_machi": {
       "source": "..\novelai_image\u0007ssets\\styles\u000b5\u0007rtist_machi.png",
-      "sha256": "433e44facf2b026805f7632180b83cf439031aa0dde9af05dfd34c20891e649d",
+      "sha256": "0f5ed03d0fcd76d3134644c6cbd339c4e7b4cc8fe45a86425330b1ea56490dc7",
       "tags": [
-        "1.05::artist:machi::, detailed skin, detailed face, detailed eyes, detailed hair, soft lighting, depth of field"
+        "1.15::artist:machi::, detailed skin, detailed face, detailed eyes, detailed hair, glossy hair, detailed clothes, ornate patterns, fabric texture, rich colors, intricate details, soft lighting, depth of field"
       ],
       "negative_tags": [
         "lowres",
@@ -2495,19 +2495,25 @@
         "oily skin",
         "wax figure",
         "doll",
-        "painterly",
-        "semi-realistic",
-        "sharp lines"
+        "overexposed",
+        "washed out",
+        "plastic skin",
+        "anime style",
+        "chibi"
+      ],
+      "removed_reference_conflicts": [
+        "cel shading",
+        "flat colors"
       ],
       "drop_negatives": [
-        "sharp focus",
-        "hard edges",
-        "crisp lineart",
-        "cel shading",
-        "hard shading",
         "banded shading",
-        "posterized",
+        "cel shading",
+        "crisp lineart",
         "flat colors",
+        "hard edges",
+        "hard shading",
+        "posterized",
+        "sharp focus",
         "two-tone shading"
       ],
       "scale": 5.5,
