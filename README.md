@@ -175,9 +175,9 @@ NanoGPT 接入未执行真实翻译请求或付费绘图请求；没有新增或
 
 ### 特色画风预设
 
-提示词里点名某档画风时**整档替换**默认预设，而不是把默认预设丢掉只留模型自由发挥。现在共 46 档：
+提示词里点名某档画风时**整档替换**默认预设，而不是把默认预设丢掉只留模型自由发挥。现在共 47 档：
 
-- 媒介类 7 档：厚涂 / 赛璐璐 / 水彩 / 素描 / 像素 / 写实 / **锐利线稿**
+- 媒介类 8 档：厚涂 / 赛璐璐 / 水彩 / 素描 / 像素 / 写实 / **锐利线稿** / 微光
 - 画师类 39 档：ciloranko、rella、wlop、mika pikazo、hiten、fuzichoco、wanke、ke-ta、ask、yoneyama mai、krenz、kantoku、shimada fumikane、as109、lack、misaki kurehito、modare、atdan、sakimichan、kuroboshi kouhaku、torino aqua、so-bin、iren lovel、aroa (aroamoyasi)、mocha (cotton)、hitsukuya、cola (gotouryouta)、tamaki、momoko (momopoco)、konya karasue、achiki、tokkyu、rurudo、mifuru、miv4t、fajyobore、emyo、loundraw、machi
 
 中英文关键词都能命中（「厚涂」「赛璐璐上色」「pixel art」「锐利线稿」「ciloranko」）。**命中多个时取关键词最长的那个**，不是表内靠前的——「锐利线稿」同时含「锐利线稿」和素描的「线稿」，按顺序会被素描截走。

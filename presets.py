@@ -260,6 +260,22 @@ PRESETS: Tuple[StylePreset, ...] = (
         reference_fidelity=0.25,
     ),
     StylePreset(
+        key="weiguang",
+        label="微光",
+        keywords=("微光", "微光画风", "weiguang", "soft glow"),
+        tags=(
+            "1.05::artist:machi::", "semi-realistic", "painterly",
+            "detailed skin", "detailed face", "detailed eyes", "detailed hair",
+            "soft lighting", "depth of field", "glossy hair", "intricate details",
+        ),
+        # 这一档要的是半写实厚涂，基础负面里没有压它，只需挡平涂与赛璐璐。
+        extra_negatives=("anime style", "cel shading", "flat colors", "chibi"),
+        drop_negatives=HARD_EDGE_NEGATIVES,
+        reference="weiguang.png",
+        reference_strength=0.7,
+        reference_fidelity=0.25,
+    ),
+    StylePreset(
         key="artist_ciloranko",
         label="画师·ciloranko",
         keywords=("ciloranko", "画师ciloranko"),
@@ -553,8 +569,10 @@ _ARTIST_TABLE: Tuple[Tuple[str, str, Tuple[str, ...], str, bool], ...] = (
      "painterly, semi-realistic, muted colors, desaturated", True),
     ("loundraw", "loundraw", ("loundraw", "画师loundraw"),
      "anime style, cel shading, flat colors, chibi", True),
+    # 半写实、细节重的画法：负面不能再压 painterly / semi-realistic，
+    # 否则正好把这一档的手感挡掉，只剩平涂。
     ("machi", "machi", ("machi", "画师machi"),
-     "painterly, semi-realistic, sharp lines, high contrast", True),
+     "anime style, cel shading, flat colors, chibi", True),
 )
 
 PRESETS = PRESETS + tuple(
