@@ -2517,9 +2517,9 @@
     },
     "weiguang": {
       "source": "..\novelai_image\u0007ssets\\styles\u000b5\\weiguang.png",
-      "sha256": "462154f3d6e88a45dd2d5e081d6e706adbd9bd536af9e9da5efd6f16c34724af",
+      "sha256": "97402d9662cdcec1cdf55b99c18f26719c1c7342617829a84fa0c97c47113b70",
       "tags": [
-        "1.05::artist:machi::, semi-realistic, painterly, detailed skin, detailed face, detailed eyes, detailed hair, soft lighting, depth of field, glossy hair, intricate details"
+        "1.05::artist:machi::, anime style, soft shading, gradient shading, clean lineart, detailed face, detailed eyes, detailed hair, soft lighting, glossy hair"
       ],
       "negative_tags": [
         "lowres",
@@ -2537,10 +2537,7 @@
         "oversharpened",
         "jagged lines",
         "dramatic lighting",
-        "high contrast",
         "harsh shadows",
-        "vivid colors",
-        "saturated",
         "realistic skin",
         "photorealistic",
         "hyperrealistic",
@@ -2550,28 +2547,32 @@
         "oily skin",
         "wax figure",
         "doll",
-        "anime style",
-        "chibi"
+        "semi-realistic",
+        "realistic",
+        "oil painting",
+        "glossy skin",
+        "wet skin",
+        "depth of field"
+      ],
+      "removed_reference_conflicts": [
+        "cel shading",
+        "flat colors"
       ],
       "drop_negatives": [
-        "sharp focus",
-        "hard edges",
-        "crisp lineart",
-        "cel shading",
-        "hard shading",
         "banded shading",
-        "posterized",
+        "cel shading",
+        "crisp lineart",
         "flat colors",
+        "hard edges",
+        "hard shading",
+        "posterized",
+        "sharp focus",
         "two-tone shading"
       ],
       "scale": 5.5,
       "steps": 28,
       "sampler": "k_euler_ancestral",
-      "style_weight": 1.0,
-      "removed_reference_conflicts": [
-        "cel shading",
-        "flat colors"
-      ]
+      "style_weight": 1.0
     }
   }
 }
