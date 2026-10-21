@@ -2,7 +2,10 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from novelai_image.exceptions import NovelAIError
 from novelai_image.parser import MODEL_ALIASES
-from novelai_image.plugin import ADMIN_ID, JobGate, NovelAIConfig, NovelAIImagePlugin
+from novelai_image.plugin import JobGate, NovelAIConfig, NovelAIImagePlugin
+
+# 测试用的假管理员 ID；真实 QQ 号只写在部署方的 config.toml 里。
+ADMIN_ID = "10000"
 import asyncio
 import base64
 import re
@@ -49,6 +52,7 @@ class _CtxConfig:
 def plugin():
     obj = NovelAIImagePlugin()
     obj._plugin_config_instance = NovelAIConfig()
+    obj._plugin_config_instance.permission.admin_ids = [ADMIN_ID]
     obj._ctx = SimpleNamespace(
         send=SimpleNamespace(text=AsyncMock(), image=AsyncMock(return_value=True),
                              forward=AsyncMock(return_value=True)),

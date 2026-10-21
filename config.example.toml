@@ -54,6 +54,8 @@ keep_alive = 0
 mode = "all"
 user_ids = []
 group_ids = []
+# 允许使用 /打开画图、/关闭画图 的用户 ID；留空表示无人可切换。
+admin_ids = []
 
 [characters]
 enabled = true

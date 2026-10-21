@@ -1,5 +1,5 @@
 {
-  "source": "C:\\Users\\user\\MaiBot\\data\\images\\225d76f58641d5a7cdc51cd558974a737f732a3e9139f59ea190f0c8503a039b.png",
+  "source": "assets/help/default-softlight-baseline/reference.png",
   "source_model": "NovelAI Diffusion V5 0ADF9AB7",
   "pixel_identical_to_user_reference": true,
   "reference_sha256": "225d76f58641d5a7cdc51cd558974a737f732a3e9139f59ea190f0c8503a039b",

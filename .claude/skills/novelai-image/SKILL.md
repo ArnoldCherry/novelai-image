@@ -5,17 +5,24 @@ description: Work on the MaiBot novelai_image plugin — NovelAI image generatio
 
 # novelai_image 插件
 
-MaiBot 的 NovelAI 文生图插件。仓库根目录就是插件目录（`plugins/novelai_image`）。
+MaiBot 的 NovelAI 文生图插件。仓库根目录就是插件目录，安装时放在 `MaiBot/plugins/novelai_image`。
+
+## 安装（其他 MaiBot 用户）
+
+1. 把本仓库放进 MaiBot 的 `plugins/novelai_image`（`git clone` 或解压）。
+2. 复制 `config.example.toml` 为 `config.toml`，按需填写。
+3. 在运行 MaiBot 的环境里设置 `NOVELAI_API_TOKEN`（只走环境变量，不要写进配置文件）。
+4. 需要 `/打开画图`、`/关闭画图` 时，在 `[permission]` 的 `admin_ids` 里填自己的用户 ID。
+5. 重启 MaiBot；用 `/画图帮助` 验证。
 
 ## 快速上手
 
 ```bash
-# 依赖已在 MaiBot 的 venv 里
-cd <MaiBot 根目录>
-./.venv/Scripts/python.exe -m pytest plugins/novelai_image/tests -q
+# 在 MaiBot 根目录，用 MaiBot 自带 venv 运行
+python -m pytest plugins/novelai_image/tests -q
 ```
 
-- 运行环境：`MaiBot\.venv\Scripts\python.exe`（不是插件目录下的 venv）。
+- 依赖：`maibot-sdk`、`httpx`、`Pillow`（见 `pyproject.toml`），MaiBot 环境已自带。
 - 令牌只从环境变量 `NOVELAI_API_TOKEN` 读取；**任何文件、日志、提交里都不得出现令牌**。
 - `config.toml` 已 gitignore，改动配置不要提交。
 

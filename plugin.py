@@ -324,7 +324,6 @@ def style_sheet_image(entries, model: str = "", columns: int = SHEET_COLUMNS,
 
 
 
-ADMIN_ID = "10000"
 HELP = """🎨 NovelAI 绘图
 /画图 <提示词>：默认 4.5 Full
 /画图画风 <提示词>：5 分钟内在原聊天发送一张图片，仅参考画风
@@ -413,6 +412,7 @@ class PermissionSection(PluginConfigBase):
     mode: str = Field(default="all", description="all 或 whitelist；普通和高清均遵循此名单")
     user_ids: List[str] = Field(default_factory=list, description="允许的用户 ID")
     group_ids: List[str] = Field(default_factory=list, description="允许的群 ID")
+    admin_ids: List[str] = Field(default_factory=list, description="可使用 /打开画图、/关闭画图 的管理员用户 ID；留空表示无人可切换")
 
 class CharacterSection(PluginConfigBase):
     enabled: bool = Field(default=True, description="读取已有角色知识库")
@@ -582,7 +582,8 @@ class NovelAIImagePlugin(WorkflowMixin, MaiBotPlugin):
         return NovelAIClient(cfg.base_url, cfg.timeout_seconds, proxy=cfg.proxy, retry_attempts=cfg.retry_attempts)
 
     def _is_admin(self, platform: str, user_id: str) -> bool:
-        return platform == "qq" and str(user_id) == ADMIN_ID
+        """管理员名单来自配置，不在代码里写死任何 QQ 号。"""
+        return bool(user_id) and str(user_id) in self.config.permission.admin_ids
 
     @Command("novelai_draw_open", description="管理员开启 NovelAI 绘图", pattern=r"^/打开画图\s*$", timeout_ms=90_000)
     async def open_drawing(self, stream_id: str = "", user_id: str = "", platform: str = "", **kwargs):

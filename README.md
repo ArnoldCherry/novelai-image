@@ -4,13 +4,14 @@
 
 ## 安装与启动
 
-1. 插件目录放在 `MaiBot/plugins/novelai_image`。依赖使用 MaiBot 的虚拟环境：在 MaiBot 目录执行 `uv pip install --python .venv/Scripts/python.exe -r plugins/novelai_image/requirements.txt`。
-2. 已提供 `config.example.toml`；复制为同目录 `config.toml`。本次部署实际配置已设为 `plugin.enabled = true`，旧 `local-nai-draw` 已禁用以避免同名命令冲突；旧配置备份为 `config.toml.before-novelai-api.bak`。
-3. 在 NovelAI 官方站点的账号设置中找到 Persistent API Token，撤销泄露的旧令牌并生成新令牌。不要把新令牌发到聊天或写入配置。
-4. **先停止已有 MaiBot**，在 MaiBot 目录运行 `powershell -ExecutionPolicy Bypass -File .\plugins\novelai_image\scripts\start-maibot-with-token.ps1`。脚本隐藏输入新令牌，只设置当前进程的 `NOVELAI_API_TOKEN`，运行结束后清理；它不会保存令牌。使用该脚本启动时，MaiBot 会继承本次令牌。
-5. NapCat 与适配器沿用现有启动方式；此插件不改动它们。
+1. 把本仓库放进 MaiBot 的 `plugins/novelai_image`。
+2. 复制 `config.example.toml` 为同目录的 `config.toml`，按需修改；`config.toml` 已被 gitignore，不会进入版本库。
+3. 用 MaiBot 自带虚拟环境安装依赖：在 MaiBot 目录执行 `uv pip install --python .venv/Scripts/python.exe -r plugins/novelai_image/requirements.txt`（或 `pip install -e plugins/novelai_image`）。
+4. 设置环境变量 `NOVELAI_API_TOKEN` 后启动 MaiBot。**不要把令牌写进配置文件、命令行历史或聊天记录**；Windows 可用 `scripts/start-maibot-with-token.ps1`，它以隐藏输入方式注入当前进程。
+5. 需要 `/打开画图`、`/关闭画图` 时，在 `[permission].admin_ids` 填入管理员用户 ID。
+6. 重启后发送 `/画图帮助` 验证。
 
-如使用已有服务管理器，应由管理员在服务环境中注入 `NOVELAI_API_TOKEN` 后重启服务。PowerShell 环境变量语法为 `$env:NOVELAI_API_TOKEN = '<仅供示例的新令牌占位符>'`；不要将真实令牌输入会保存历史的命令行，建议使用上述隐藏输入脚本。没有环境变量时插件只返回配置提示，不访问付费接口。
+没有令牌时插件只返回配置提示，不访问付费接口。
 
 ## 命令
 
@@ -60,7 +61,7 @@
 
 默认引导强度 5、采样器 `k_euler_ancestral`、步数 28，可配置。每用户冷却 25 秒，默认并发 1；忙碌或同用户重复请求立即反馈，不积压付费请求。`permission.mode` 为 `all` 或 `whitelist`，后者允许列在 `user_ids` 中的用户或 `group_ids` 中的群。NovelAI API 超时支持 5～180 秒，翻译超时最多 60 秒；命令运行最长 300 秒以容纳两段请求。
 
-`/打开画图` 与 `/关闭画图` 只允许管理员 QQ `10000` 使用，状态保存在插件数据目录 `drawing.disabled`。NanoGPT 模式下开关只控制绘图与翻译请求，不启动、预加载或卸载 Ollama。已有绘图请求处理期间要求等请求完成再关闭。
+`/打开画图` 与 `/关闭画图` 只允许 `[permission].admin_ids` 中列出的用户使用（默认空，需自行配置），状态保存在插件数据目录 `drawing.disabled`。NanoGPT 模式下开关只控制绘图与翻译请求，不启动、预加载或卸载 Ollama。已有绘图请求处理期间要求等请求完成再关闭。
 
 `[translation]` 默认 `backend="nanogpt"`，固定官方 API `https://nano-gpt.com/api/v1` 与模型 `qwen/qwen3.8-27b-uncensored`。密钥从 `NANOGPT_API_KEY` 进程环境或当前 Windows 用户保存的环境变量读取，不写入配置。`proxy` 是可选显式代理，留空直连；请求禁用环境代理与重定向。远程失败明确报错，不自动切换到本地。现代翻译链及至多一次格式修正共用最多 60 秒总预算，连接最多 10 秒；短输入输出上限 1024 token，长输入 2048 token，响应上限 64 KiB。超时不自动重试。日志记录响应阶段与耗时，上游正文、提示词与凭证不写入日志。
 
@@ -206,7 +207,7 @@ NanoGPT 接入未执行真实翻译请求或付费绘图请求；没有新增或
 
 `[generation].collapse_groups` 列出的群号，里面的出图一律折成一条合并转发，不做内容判定；其余群和私聊逐张直发。默认空列表，即哪里都不折叠。
 
-转发节点的图片先统一转成有体积限制的 JPEG，再以 base64 上传。机器人账号从 `bot.qq_account` / `bot.nickname` 取。明确上传失败时，仅用更小的 JPEG 重试一次；超时等结果不明的情况不重试，避免重复投递。名单内群始终不降级直发，失败原图及索引保存在插件数据目录 `pending_deliveries/<任务号>/`，路径记入管理员日志，聊天返回任务号。当前本机名单只有 `100000000`，其余群和私聊出图直接发送。
+转发节点的图片先统一转成有体积限制的 JPEG，再以 base64 上传。机器人账号从 `bot.qq_account` / `bot.nickname` 取。明确上传失败时，仅用更小的 JPEG 重试一次；超时等结果不明的情况不重试，避免重复投递。名单内群始终不降级直发，失败原图及索引保存在插件数据目录 `pending_deliveries/<任务号>/`，路径记入管理员日志，聊天返回任务号。名单由 `[generation].collapse_groups` 配置，未列入的群和私聊出图直接发送。
 
 画师标签可通过 `[style].artist_tags` 和 `hd_artist_tags` 按模型分别配置，默认留空。一个可试的低权重候选为 `0.35::artist:ainiwaffles::`；NovelAI 官方风格文档曾用该标签展示插画例子，但它不是“小虚”原图作者的确认信息，也不能保证匹配两代模型。建议先只在一项配置里试，并用同一提示词、种子和其余参数与默认风格对照，再决定是否保留。官方建议把整体画风标签放在提示词靠前位置，本插件的自动风格块会放在角色与场景标签前。
 
