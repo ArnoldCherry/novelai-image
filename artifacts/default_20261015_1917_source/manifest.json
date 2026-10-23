@@ -6,7 +6,7 @@
       "git_index_blob": "d71e243b15b5fc34afeb3a9d640e140a5e97abbc",
       "snapshot_sha256": "d2b23a2052bada2b02182dad1ff958bb34f75309fa3bbdfeec73f5877f7f3e33",
       "runtime_file": "legacy_default_nanogpt.py",
-      "runtime_sha256": "aa40a1a22d75ece9d4cbbc0b784574223b66b194537e2cb3c1771d3bebd11fc2",
+      "runtime_sha256": "1d07a5ccceac1a173ccf25d9287f1342b47f6d75ab500f669d186ab724047b79",
       "runtime_change": "Only relative glossary import renamed"
     },
     "glossary.py": {

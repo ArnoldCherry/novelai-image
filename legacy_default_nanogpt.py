@@ -105,6 +105,8 @@ class NanoGPTTranslator:
             raise NovelAIError("配置错误：translation.proxy 必须为有效 HTTP/HTTPS 代理地址。")
         self.base_url, self.model, self.timeout = NANOGPT_BASE_URL, model, timeout
         self.proxy, self.transport = proxy, transport
+        # 模型会拒绝不支持的采样参数；首次被拒后记下来，后续不再发送。
+        self._unsupported_params: set[str] = set()
         # 普通视觉标签与官方角色标签各一个词典，可传单个或一组。
         self.tag_indexes = [item for item in (tag_index if isinstance(tag_index, (list, tuple)) else [tag_index]) if item is not None]
 
@@ -167,25 +169,50 @@ class NanoGPTTranslator:
                 raise
         raise last_error or NovelAIError("NanoGPT 翻译失败，请稍后重试。")
 
-    async def _post(self, payload: Dict[str, Any], token: str) -> Dict[str, Any]:
+    @staticmethod
+    def _unsupported_parameters(body: bytes) -> List[str]:
         try:
-            async with asyncio.timeout(self.timeout):
-                async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout), transport=self.transport, proxy=self.proxy or None, follow_redirects=False, trust_env=False) as client:
-                    async with client.stream("POST", self.base_url + "/chat/completions", headers={"Authorization": "Bearer " + token}, json=payload) as response:
-                        if response.status_code in (401, 403):
-                            raise NovelAIError("NanoGPT 翻译认证或权限失败，请管理员检查密钥。")
-                        if response.status_code == 402:
-                            raise NovelAIError("NanoGPT 翻译余额不足，请管理员检查账户。")
-                        if response.status_code == 429:
-                            raise NovelAIError("NanoGPT 翻译请求过于频繁，请稍后重试。")
-                        if not 200 <= response.status_code < 300:
-                            raise NovelAIError("NanoGPT 翻译服务请求失败，请稍后重试。")
-                        data = bytearray()
-                        async for chunk in response.aiter_bytes():
-                            data.extend(chunk)
-                            if len(data) > MAX_RESPONSE_BYTES:
-                                raise NovelAIError("NanoGPT 翻译响应超过大小上限。")
-            result = json.loads(data)
+            data = json.loads(body)
+        except (ValueError, TypeError):
+            return []
+        error = data.get("error") if isinstance(data, dict) else None
+        values = error.get("unsupported_parameters") if isinstance(error, dict) else None
+        if not isinstance(values, list):
+            return []
+        return [item for item in values if isinstance(item, str)]
+
+    async def _post(self, payload: Dict[str, Any], token: str) -> Dict[str, Any]:
+        payload = {key: value for key, value in payload.items() if key not in self._unsupported_params}
+        try:
+            for attempt in range(2):
+                async with asyncio.timeout(self.timeout):
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(self.timeout), transport=self.transport, proxy=self.proxy or None, follow_redirects=False, trust_env=False) as client:
+                        async with client.stream("POST", self.base_url + "/chat/completions", headers={"Authorization": "Bearer " + token}, json=payload) as response:
+                            if response.status_code in (401, 403):
+                                raise NovelAIError("NanoGPT 翻译认证或权限失败，请管理员检查密钥。")
+                            if response.status_code == 402:
+                                raise NovelAIError("NanoGPT 翻译余额不足，请管理员检查账户。")
+                            if response.status_code == 429:
+                                raise NovelAIError("NanoGPT 翻译请求过于频繁，请稍后重试。")
+                            data = bytearray()
+                            async for chunk in response.aiter_bytes():
+                                data.extend(chunk)
+                                if len(data) > MAX_RESPONSE_BYTES:
+                                    raise NovelAIError("NanoGPT 翻译响应超过大小上限。")
+                            if response.status_code in (400, 422):
+                                rejected = self._unsupported_parameters(bytes(data))
+                                fresh = [key for key in rejected if key in payload and key not in self._unsupported_params]
+                                if fresh and attempt == 0:
+                                    for key in fresh:
+                                        payload.pop(key, None)
+                                        self._unsupported_params.add(key)
+                                    logger.warning("NanoGPT 模型不接受参数 %s，已移除后重试", ", ".join(fresh))
+                                    continue
+                                raise NovelAIError("NanoGPT 拒绝结构化翻译请求，请检查模型与输入格式。")
+                            if not 200 <= response.status_code < 300:
+                                raise NovelAIError(f"NanoGPT 翻译服务请求失败（HTTP {response.status_code}），请稍后重试。")
+                result = json.loads(data)
+                break
         except NovelAIError:
             raise
         except (TimeoutError, httpx.TimeoutException):
