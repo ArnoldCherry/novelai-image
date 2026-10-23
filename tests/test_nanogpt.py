@@ -44,6 +44,39 @@ def test_explicit_tags_pass_through_unfiltered(key):
     assert "fingers in pussy" in result["positive"]
 
 
+def test_unsupported_sampling_parameter_is_dropped_and_retried(key):
+    # qwen3.8 这类模型会拒绝 frequency_penalty；直接报错会让所有翻译失败。
+    seen = []
+
+    def handler(request):
+        payload = json.loads(request.content)
+        seen.append(dict(payload))
+        if "frequency_penalty" in payload:
+            return httpx.Response(400, json={"error": {
+                "message": 'This model cannot honor the requested parameter "frequency_penalty".',
+                "type": "invalid_request_error", "code": "unsupported_parameter", "param": "frequency_penalty",
+                "unsupported_parameters": ["frequency_penalty"]}})
+        return httpx.Response(200, json={"choices": [{
+            "finish_reason": "stop",
+            "message": {"role": "assistant", "content": json.dumps({"positive": "cat"})}}]})
+
+    translator = NanoGPTTranslator(transport=httpx.MockTransport(handler))
+    result = asyncio.run(translator.translate_many({"positive": "猫"}))
+    assert result["positive"] == "cat"
+    assert len(seen) == 2 and "frequency_penalty" in seen[0] and "frequency_penalty" not in seen[1]
+    # 同一个翻译器后续请求直接不带该参数，不再多付一次 400。
+    seen.clear()
+    asyncio.run(translator.translate_many({"positive": "狗"}))
+    assert seen and "frequency_penalty" not in seen[0]
+
+
+def test_unsupported_status_reports_http_code(key):
+    translator = NanoGPTTranslator(transport=httpx.MockTransport(
+        lambda request: httpx.Response(502, text="bad gateway")))
+    with pytest.raises(NovelAIError, match="HTTP 502"):
+        asyncio.run(translator.translate_many({"positive": "猫"}))
+
+
 def test_missing_key_reports_configuration(monkeypatch):
     monkeypatch.setattr("novelai_image.nanogpt.resolve_nanogpt_key", lambda: "")
     translator = NanoGPTTranslator(transport=httpx.MockTransport(handler_for({"positive": "cat"})))
